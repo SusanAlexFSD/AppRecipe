@@ -1,35 +1,37 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import React from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import NavBar from './components/NavBar.jsx';  // import Navbar here
+import Login from './components/Login.jsx';
+import Register from './components/Register.jsx';
+import GuestLogin from './components/GuestLogin.jsx';
+import Recipes from './components/Recipes.jsx';
+import PrivateRoute from './components/PrivateRoute.jsx';
+import ShoppingList from './components/ShoppingList.jsx';
+import Favorites from './components/Favorites.jsx';
+import Recipe from './components/Recipe.jsx';
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <Router>
+      <NavBar />  {/* Add Navbar here so it's always visible */}
+      <Routes>
+        <Route path="/" element={<Recipes />} />
+        <Route path="/recipe/:id" element={<Recipe />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/guest" element={<GuestLogin />} />
+        <Route path="/shopping-list" element={<ShoppingList />} />
+        <Route path="/favorites" element={<Favorites />} />
+
+        {/* Protected recipe detail route */}
+        <Route path="/recipe/:id" element={
+          <PrivateRoute>
+            <Recipe />
+          </PrivateRoute>
+        } />
+      </Routes>
+    </Router>
+  );
 }
 
-export default App
+export default App;

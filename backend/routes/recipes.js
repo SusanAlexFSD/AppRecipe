@@ -1,14 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const axios = require('axios');
+const recipeController = require('../controllers/recipeController');
 
-// Test route: fetch recipes from TheMealDB
-router.get('/test', async (req, res) => {
+router.get('/test', recipeController.getTestRecipes);
+router.get('/', recipeController.getRecipes);
+router.get('/category/:name', recipeController.getRecipesByCategory);
+router.get('/:id', recipeController.getRecipeById);
+
+
+// GET /api/recipes/:id - Fetch single recipe by ID
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+
   try {
-    const response = await axios.get('https://www.themealdb.com/api/json/v1/1/search.php?s=');
-    res.json(response.data);
-  } catch (err) {
-    res.status(500).json({ message: 'Failed to fetch from TheMealDB' });
+    const recipe = await Recipe.findById(id); // Or use getRecipeById(id) if abstracted
+    if (!recipe) {
+      return res.status(404).json({ message: 'Recipe not found' });
+    }
+    res.json({ recipe });
+  } catch (error) {
+    console.error('Error fetching recipe by ID:', error);
+    res.status(500).json({ message: 'Server error' });
   }
 });
 

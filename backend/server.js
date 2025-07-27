@@ -3,11 +3,15 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
+
 const app = express();
 
 // Middleware
 app.use(cors());
 app.use(express.json());
+
+const userRoutes = require('./routes/users');
+app.use('/api/users', userRoutes);
 
 // Import routes
 const recipeRoutes = require('./routes/recipes');
@@ -16,6 +20,14 @@ const recipeRoutes = require('./routes/recipes');
 // Use routes
 app.use('/api/recipes', recipeRoutes);
 //app.use('/api/users', userRoutes); // optional if you haven’t built it yet
+
+//authhentication routes
+const auth = require('./middleware/auth'); // 👈 adjust the path if needed
+
+app.get('/api/protected', auth, (req, res) => {
+  res.json({ message: 'You have access!', user: req.user });
+});
+
 
 // Test root route
 app.get('/', (req, res) => {
