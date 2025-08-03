@@ -1,0 +1,22 @@
+.recipe-detail {
+  max-width: 600px;
+  margin: auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+}
+
+.recipe-image {
+  width: 100%;
+  max-width: 500px;
+  height: auto;
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+ul {
+  padding-left: 20px;
+}
+
+h2 {
+  margin-top: 20px;
+}

@@ -23,12 +23,7 @@ function App() {
         <Route path="/shopping-list" element={<ShoppingList />} />
         <Route path="/favorites" element={<Favorites />} />
 
-        {/* Protected recipe detail route */}
-        <Route path="/recipe/:id" element={
-          <PrivateRoute>
-            <Recipe />
-          </PrivateRoute>
-        } />
+        
       </Routes>
     </Router>
   );

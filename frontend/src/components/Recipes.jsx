@@ -1,9 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import '../styles/Recipes.css';
+import './Recipes.css';
 
-const categories = ['Beef', 'Breakfast', 'Chicken', 'Dessert', 'Lamb', 'Pasta', 'Pork', 'Seafood', 'Vegan', 'Vegetarian'];
+const categories = [
+  'Beef', 'Breakfast', 'Chicken', 'Dessert',
+  'Lamb', 'Pasta', 'Pork', 'Seafood', 'Vegan', 'Vegetarian'
+];
 
 export default function Recipes() {
   const [recipes, setRecipes] = useState([]);
@@ -14,44 +17,127 @@ export default function Recipes() {
   const [fromCache, setFromCache] = useState(false);
 
   const fetchRecipes = async (cat = '') => {
+    console.log('Fetching recipes for:', cat);
     setLoading(true);
     setError('');
+
     try {
-      let url = '/api/recipes';
-      if (cat) {
-        url = `/api/recipes/category/${cat.toLowerCase()}`;
+      // Check cache first
+      const cacheKey = cat ? `recipes_${cat.toLowerCase()}` : 'recipes_all';
+      const cached = localStorage.getItem(cacheKey);
+
+      if (cached) {
+        const cachedData = JSON.parse(cached);
+        
+        // Validate cached data has required fields (handle both formats)
+        const firstItem = cachedData[0];
+        const hasValidData = firstItem && (
+          (firstItem.title && firstItem.image) ||  // Our transformed format
+          (firstItem.strMeal && firstItem.strMealThumb)  // Raw API format
+        );
+        
+        if (hasValidData) {
+          console.log('Loaded from localStorage:', cacheKey);
+          setRecipes(cachedData);
+          setFromCache(true);
+          setLoading(false);
+          return;
+        } else {
+          // Clear invalid cache
+          localStorage.removeItem(cacheKey);
+          console.log('Cleared invalid cache for:', cacheKey);
+        }
       }
-      const res = await axios.get(url);
-      setRecipes(res.data.recipes || res.data);
+
+      // Fetch from server
+      let url = '/api/recipes';
+      if (cat) url = `/api/recipes/category/${cat.toLowerCase()}`;
+
+      const res = await axios.get('http://localhost:5000' + url);
+      
+      console.log('=== SERVER RESPONSE ===');
+      console.log('Full response:', res.data);
+      
+      const data = res.data.recipes || res.data;
+      console.log('Extracted data:', data);
+      console.log('First recipe from server:', data[0]);
+
+      setRecipes(data);
       setFromCache(res.data.fromCache || false);
+
+      // Cache only if data looks valid (handle both formats)
+      const firstItem = data[0];
+      const isValidData = firstItem && (
+        (firstItem.title && firstItem.image) ||  // Our transformed format
+        (firstItem.strMeal && firstItem.strMealThumb)  // Raw API format  
+      );
+      
+      if (data && data.length > 0 && isValidData) {
+        localStorage.setItem(cacheKey, JSON.stringify(data));
+        console.log('Cached valid data for:', cacheKey);
+      } else {
+        console.warn('Server data invalid, not caching:', data[0]);
+      }
     } catch (err) {
+      console.error('Error fetching recipes:', err);
       setError('Failed to load recipes.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
-  // Fetch random recipe for "Surprise Me"
   const fetchRandomRecipe = async () => {
     setLoading(true);
     setError('');
     try {
-      const res = await axios.get('/api/recipes/random');
-      // Show just that one random recipe
-      setRecipes([res.data.recipe || res.data]);
+      const res = await axios.get('http://localhost:5000/api/recipes/random');
+      const recipe = res.data.recipe || res.data;
+      setRecipes([recipe]);
       setCategory('');
       setSearchTerm('');
       setFromCache(false);
     } catch (err) {
+      console.error('Error fetching random recipe:', err);
       setError('Failed to load random recipe.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
+  };
+
+  const clearAllCache = async () => {
+    try {
+      // Clear localStorage
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('recipes_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      
+      // Clear backend cache
+      await axios.delete('http://localhost:5000/api/recipes/cache');
+      
+      console.log('Cleared all caches (frontend + backend)');
+      
+      // Force fresh fetch
+      setRecipes([]);
+      fetchRecipes(category);
+    } catch (error) {
+      console.error('Error clearing cache:', error);
+      // Still clear frontend cache even if backend fails
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('recipes_')) {
+          localStorage.removeItem(key);
+        }
+      });
+      setRecipes([]);
+      fetchRecipes(category);
+    }
   };
 
   useEffect(() => {
     fetchRecipes();
   }, []);
 
-  // Filter recipes locally by searchTerm
   const filteredRecipes = recipes.filter(recipe => {
     const title = recipe.title || recipe.strMeal || '';
     return title.toLowerCase().includes(searchTerm.toLowerCase());
@@ -61,9 +147,19 @@ export default function Recipes() {
     <div>
       <h1>Recipes {category && `- ${category}`}</h1>
 
-      {/* Category buttons */}
+      {/* Category Buttons */}
       <div style={{ marginBottom: '20px' }}>
-        <button onClick={() => { setCategory(''); fetchRecipes(''); }} disabled={!category}>All</button>
+        <button
+          onClick={() => {
+            setCategory('');
+            fetchRecipes('');
+            setSearchTerm('');
+          }}
+          disabled={!category}
+          style={{ marginRight: '5px', padding: '5px 10px' }}
+        >
+          All
+        </button>
         {categories.map(cat => (
           <button
             key={cat}
@@ -72,49 +168,132 @@ export default function Recipes() {
               fetchRecipes(cat);
               setSearchTerm('');
             }}
-            disabled={category === cat}
+            style={{ 
+              marginRight: '5px', 
+              padding: '5px 10px',
+              backgroundColor: category === cat ? '#007bff' : '#f8f9fa',
+              color: category === cat ? 'white' : 'black'
+            }}
           >
             {cat}
           </button>
         ))}
       </div>
 
-      {/* Search bar */}
-      <input
-        type="text"
-        placeholder="Search recipes..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        style={{ marginBottom: '10px', padding: '5px', width: '100%', maxWidth: '300px' }}
-      />
+      {/* Search + Controls */}
+      <div style={{ marginBottom: '20px' }}>
+        <input
+          type="text"
+          placeholder="Search recipes..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          style={{ padding: '5px', width: '100%', maxWidth: '300px', marginRight: '10px' }}
+        />
+        <button 
+          onClick={fetchRandomRecipe} 
+          style={{ marginRight: '10px', padding: '5px 10px' }}
+        >
+          Surprise Me
+        </button>
+        <button 
+          onClick={clearAllCache}
+          style={{ padding: '5px 10px', backgroundColor: '#dc3545', color: 'white' }}
+        >
+          Clear Cache
+        </button>
+      </div>
 
-      {/* Surprise Me button */}
-      <button onClick={fetchRandomRecipe} style={{ marginLeft: '10px', padding: '5px 10px' }}>
-        Surprise Me
-      </button>
-
+      {/* Status Messages */}
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
       {fromCache && <p style={{ fontStyle: 'italic', color: 'gray' }}>Loaded from cache</p>}
+      
+      {/* Results Info */}
+      {recipes.length > 0 && !loading && (
+        <p style={{ marginBottom: '20px', color: '#666' }}>
+          Showing {filteredRecipes.length} of {recipes.length} recipes
+          {searchTerm && ` matching "${searchTerm}"`}
+        </p>
+      )}
 
-      {/* Recipe list */}
-      <ul style={{ listStyle: 'none', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
+      {/* No Results */}
+      {!loading && recipes.length === 0 && (
+        <p style={{ textAlign: 'center', color: '#666', marginTop: '40px' }}>
+          No recipes found. Try selecting a different category.
+        </p>
+      )}
+
+      {/* Recipe Grid */}
+      <div className="recipe-grid">
         {filteredRecipes.map(recipe => {
-          const id = recipe._id || recipe.apiId || recipe.idMeal || recipe.id;
-          const title = recipe.title || recipe.strMeal;
-          const image = recipe.image || recipe.strMealThumb;
+          // Use apiId as primary identifier for routing
+          const id = recipe.apiId || recipe.idMeal || recipe._id || Math.random();
+          // Handle both transformed (title/image) and raw API (strMeal/strMealThumb) formats
+          const title = recipe.title || recipe.strMeal || 'Untitled Recipe';
+          const image = recipe.image || recipe.strMealThumb || '';
+
+          console.log('Rendering recipe:', { id, title, image, raw: recipe }); // Debug line
 
           return (
-            <li key={id} style={{ border: '1px solid #ccc', padding: '10px', width: '200px' }}>
-              <h3>{title}</h3>
-              {image && <img src={image} alt={title} width="180" />}
-              <Link to={`/recipe/${id}`}>
-                <button style={{ marginTop: '10px' }}>View Recipe</button>
+            <div className="recipe-card" key={id}>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.1em' }}>{title}</h3>
+              {image ? (
+                <img 
+                  src={image} 
+                  alt={title} 
+                  style={{ 
+                    width: '100%', 
+                    height: '200px',
+                    objectFit: 'cover',
+                    borderRadius: '8px',
+                    marginBottom: '10px'
+                  }} 
+                  onError={(e) => {
+                    e.target.style.display = 'none';
+                    e.target.nextSibling.style.display = 'block';
+                  }}
+                />
+              ) : null}
+              {!image && (
+                <div style={{ 
+                  width: '100%', 
+                  height: '200px', 
+                  backgroundColor: '#f8f9fa',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: '8px',
+                  marginBottom: '10px',
+                  color: '#666'
+                }}>
+                  No image available
+                </div>
+              )}
+              <Link to={`/recipe/${recipe.apiId || recipe._id}`}>
+                <button style={{ 
+                  width: '100%',
+                  padding: '8px',
+                  backgroundColor: '#007bff',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer'
+                }}>
+                  View Recipe
+                </button>
               </Link>
-            </li>
+            </div>
           );
         })}
-      </ul>
+      </div>
+
+      {/* Debug Info (remove in production) */}
+      {process.env.NODE_ENV === 'development' && recipes.length > 0 && (
+        <details style={{ marginTop: '40px', fontSize: '12px', color: '#666' }}>
+          <summary>Debug Info</summary>
+          <pre>{JSON.stringify(recipes.slice(0, 2), null, 2)}</pre>
+        </details>
+      )}
     </div>
   );
 }
