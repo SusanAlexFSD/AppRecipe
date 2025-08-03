@@ -104,36 +104,6 @@ export default function Recipes() {
     }
   };
 
-  const clearAllCache = async () => {
-    try {
-      // Clear localStorage
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('recipes_')) {
-          localStorage.removeItem(key);
-        }
-      });
-      
-      // Clear backend cache
-      await axios.delete('http://localhost:5000/api/recipes/cache');
-      
-      console.log('Cleared all caches (frontend + backend)');
-      
-      // Force fresh fetch
-      setRecipes([]);
-      fetchRecipes(category);
-    } catch (error) {
-      console.error('Error clearing cache:', error);
-      // Still clear frontend cache even if backend fails
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('recipes_')) {
-          localStorage.removeItem(key);
-        }
-      });
-      setRecipes([]);
-      fetchRecipes(category);
-    }
-  };
-
   useEffect(() => {
     fetchRecipes();
   }, []);
@@ -194,12 +164,6 @@ export default function Recipes() {
           style={{ marginRight: '10px', padding: '5px 10px' }}
         >
           Surprise Me
-        </button>
-        <button 
-          onClick={clearAllCache}
-          style={{ padding: '5px 10px', backgroundColor: '#dc3545', color: 'white' }}
-        >
-          Clear Cache
         </button>
       </div>
 
@@ -287,13 +251,6 @@ export default function Recipes() {
         })}
       </div>
 
-      {/* Debug Info (remove in production) */}
-      {process.env.NODE_ENV === 'development' && recipes.length > 0 && (
-        <details style={{ marginTop: '40px', fontSize: '12px', color: '#666' }}>
-          <summary>Debug Info</summary>
-          <pre>{JSON.stringify(recipes.slice(0, 2), null, 2)}</pre>
-        </details>
-      )}
-    </div>
+      </div>
   );
 }
