@@ -10,29 +10,13 @@ const categories = [
 
 export default function Recipes() {
   const [recipes, setRecipes] = useState([]);
-  const [favorites, setFavorites] = useState([]);
-  const [shoppingList, setShoppingList] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [category, setCategory] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
   const [fromCache, setFromCache] = useState(false);
-  const [viewMode, setViewMode] = useState('all'); // 'all', 'favorites', 'shopping'
 
-  useEffect(() => {
-    const savedFavs = JSON.parse(localStorage.getItem('favorites')) || [];
-    const savedList = JSON.parse(localStorage.getItem('shoppingList')) || [];
-    setFavorites(savedFavs);
-    setShoppingList(savedList);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem('favorites', JSON.stringify(favorites));
-  }, [favorites]);
-
-  useEffect(() => {
-    localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
-  }, [shoppingList]);
+  // We no longer need viewMode/favorites/shoppingList state here since those views are on separate routes
 
   const fetchRecipes = async (cat = '') => {
     setLoading(true);
@@ -94,7 +78,6 @@ export default function Recipes() {
       setCategory('');
       setSearchTerm('');
       setFromCache(false);
-      setViewMode('all');
     } catch (err) {
       setError('Failed to load random recipe.');
     } finally {
@@ -106,25 +89,22 @@ export default function Recipes() {
     fetchRecipes();
   }, []);
 
-  const filteredRecipes = (viewMode === 'favorites' ? favorites : recipes).filter(recipe => {
+  // Filter recipes for search term
+  const filteredRecipes = recipes.filter(recipe => {
     const title = recipe.title || recipe.strMeal || '';
     return title.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
-  // === UI ===
   return (
     <div>
       <h1>
-        {viewMode === 'favorites' && 'Favorite Recipes'}
-        {viewMode === 'shopping' && 'Shopping List'}
-        {viewMode === 'all' && `Recipes ${category ? `- ${category}` : ''}`}
+        Recipes {category ? `- ${category}` : ''}
       </h1>
 
-      {/* View Mode Buttons */}
+      {/* Navigation Buttons */}
       <div style={{ marginBottom: '20px' }}>
         <button
           onClick={() => {
-            setViewMode('all');
             setCategory('');
             fetchRecipes('');
             setSearchTerm('');
@@ -132,50 +112,46 @@ export default function Recipes() {
           style={{
             marginRight: '10px',
             padding: '5px 10px',
-            backgroundColor: viewMode === 'all' ? '#007bff' : '#f8f9fa',
-            color: viewMode === 'all' ? 'white' : 'black'
+            backgroundColor: !category ? '#007bff' : '#f8f9fa',
+            color: !category ? 'white' : 'black'
           }}
         >
           All Recipes
         </button>
 
+        {/* Link to Favorites Page */}
+        <Link to="/favorites" style={{ textDecoration: 'none' }}>
+          <button
+            style={{
+              marginRight: '10px',
+              padding: '5px 10px',
+              backgroundColor: '#ffc107',
+              color: 'black',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Favorites
+          </button>
+        </Link>
 
-        {/* Favorites Button */}
-        <button
-          onClick={() => {
-            setViewMode('favorites');
-            setSearchTerm('');
-          }}
-          style={{
-            marginRight: '10px',
-            padding: '5px 10px',
-            backgroundColor: viewMode === 'favorites' ? '#007bff' : '#f8f9fa',
-            color: viewMode === 'favorites' ? 'white' : 'black'
-          }}
-        >
-          Favorites
-        </button>
-
-
-       {/* Shopping List Button */}
-        <button
-          onClick={() => {
-            // 🔄 Re-load from localStorage every time you enter shopping view
-            const savedList = JSON.parse(localStorage.getItem('shoppingList')) || [];
-            setShoppingList(savedList);
-
-            setViewMode('shopping');
-            setSearchTerm('');
-          }}
-          style={{
-            marginRight: '10px',
-            padding: '5px 10px',
-            backgroundColor: viewMode === 'shopping' ? '#007bff' : '#f8f9fa',
-            color: viewMode === 'shopping' ? 'white' : 'black'
-          }}
-        >
-          Shopping List
-        </button>
+        {/* Link to Shopping List Page */}
+        <Link to="/shopping-list" style={{ textDecoration: 'none' }}>
+          <button
+            style={{
+              marginRight: '10px',
+              padding: '5px 10px',
+              backgroundColor: '#28a745',
+              color: 'white',
+              border: 'none',
+              borderRadius: '4px',
+              cursor: 'pointer',
+            }}
+          >
+            Shopping List
+          </button>
+        </Link>
 
         <button
           onClick={fetchRandomRecipe}
@@ -186,39 +162,37 @@ export default function Recipes() {
       </div>
 
       {/* Category Buttons */}
-      {viewMode === 'all' && (
-        <div style={{ marginBottom: '20px' }}>
+      <div style={{ marginBottom: '20px' }}>
+        <button
+          onClick={() => {
+            setCategory('');
+            fetchRecipes('');
+            setSearchTerm('');
+          }}
+          disabled={!category}
+          style={{ marginRight: '5px', padding: '5px 10px' }}
+        >
+          All
+        </button>
+        {categories.map(cat => (
           <button
+            key={cat}
             onClick={() => {
-              setCategory('');
-              fetchRecipes('');
+              setCategory(cat);
+              fetchRecipes(cat);
               setSearchTerm('');
             }}
-            disabled={!category}
-            style={{ marginRight: '5px', padding: '5px 10px' }}
+            style={{
+              marginRight: '5px',
+              padding: '5px 10px',
+              backgroundColor: category === cat ? '#007bff' : '#f8f9fa',
+              color: category === cat ? 'white' : 'black'
+            }}
           >
-            All
+            {cat}
           </button>
-          {categories.map(cat => (
-            <button
-              key={cat}
-              onClick={() => {
-                setCategory(cat);
-                fetchRecipes(cat);
-                setSearchTerm('');
-              }}
-              style={{
-                marginRight: '5px',
-                padding: '5px 10px',
-                backgroundColor: category === cat ? '#007bff' : '#f8f9fa',
-                color: category === cat ? 'white' : 'black'
-              }}
-            >
-              {cat}
-            </button>
-          ))}
-        </div>
-      )}
+        ))}
+      </div>
 
       {/* Search */}
       <div style={{ marginBottom: '20px' }}>
@@ -234,81 +208,64 @@ export default function Recipes() {
       {/* Status Messages */}
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
-      {fromCache && viewMode === 'all' && (
+      {fromCache && (
         <p style={{ fontStyle: 'italic', color: 'gray' }}>Loaded from cache</p>
       )}
 
-      {/* Shopping List View */}
-      {viewMode === 'shopping' && (
-        <div style={{ marginTop: '20px' }}>
-          {shoppingList.length === 0 ? (
-            <p>No ingredients in your shopping list.</p>
-          ) : (
-            <ul style={{ lineHeight: '1.8em' }}>
-              {[...new Set(shoppingList)].map((item, idx) => (
-                <li key={idx}>🛒 {item}</li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
       {/* Recipes Grid */}
-      {viewMode !== 'shopping' && (
-        <div className="recipe-grid">
-          {filteredRecipes.map(recipe => {
-            const id = recipe.apiId || recipe.idMeal || recipe._id;
-            const title = recipe.title || recipe.strMeal || 'Untitled';
-            const image = recipe.image || recipe.strMealThumb || '';
+      <div className="recipe-grid">
+        {filteredRecipes.map(recipe => {
+          const id = recipe.apiId || recipe.idMeal || recipe._id;
+          const title = recipe.title || recipe.strMeal || 'Untitled';
+          const image = recipe.image || recipe.strMealThumb || '';
 
-            return (
-              <div className="recipe-card" key={id}>
-                <h3>{title}</h3>
-                {image ? (
-                  <img
-                    src={image}
-                    alt={title}
-                    style={{
-                      width: '100%',
-                      height: '200px',
-                      objectFit: 'cover',
-                      borderRadius: '8px',
-                      marginBottom: '10px',
-                    }}
-                  />
-                ) : (
-                  <div style={{
+          return (
+            <div className="recipe-card" key={id}>
+              <h3>{title}</h3>
+              {image ? (
+                <img
+                  src={image}
+                  alt={title}
+                  style={{
+                    width: '100%',
                     height: '200px',
-                    backgroundColor: '#eee',
+                    objectFit: 'cover',
                     borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginBottom: '10px'
-                  }}>
-                    No image available
-                  </div>
-                )}
-                <Link to={`/recipe/${id}`}>
-                  <button
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      backgroundColor: '#007bff',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    View Recipe
-                  </button>
-                </Link>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                    marginBottom: '10px',
+                  }}
+                />
+              ) : (
+                <div style={{
+                  height: '200px',
+                  backgroundColor: '#eee',
+                  borderRadius: '8px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginBottom: '10px'
+                }}>
+                  No image available
+                </div>
+              )}
+              <Link to={`/recipe/${id}`}>
+                <button
+                  style={{
+                    width: '100%',
+                    padding: '8px',
+                    backgroundColor: '#007bff',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  View Recipe
+                </button>
+              </Link>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

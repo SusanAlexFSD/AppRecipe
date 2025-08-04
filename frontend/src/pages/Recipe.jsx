@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import './Recipe.css';
-
 
 export default function Recipe() {
   const { id } = useParams();
@@ -20,17 +19,26 @@ export default function Recipe() {
     }
   };
 
-   // ✅ Handle Shopping List using localStorage directly
-  const handleAddToShoppingList = () => {
-  if (recipe?.ingredients?.length > 0) {
-    const saved = JSON.parse(localStorage.getItem('shoppingList')) || [];
-    const updated = [...saved, ...recipe.ingredients];
-    localStorage.setItem('shoppingList', JSON.stringify(updated));
-    alert('Ingredients added to shopping list!');
-  }
-};
+  const addToShoppingList = (newIngredients) => {
+    setShoppingList(prevList => {
+      // Combine old + new ingredients
+      const combined = [...prevList, ...newIngredients];
+      // Remove duplicates
+      const unique = Array.from(new Set(combined));
+      // Save to localStorage
+      localStorage.setItem('shoppingList', JSON.stringify(unique));
+      return unique;
+    });
+  };
 
-    // 🔁 Load from localStorage on mount
+  const handleAddToShoppingList = () => {
+    if (recipe?.ingredients?.length) {
+      addToShoppingList(recipe.ingredients);
+      alert('Ingredients added to shopping list!');
+    }
+  };
+
+  // 🔁 Load from localStorage on mount
   useEffect(() => {
     const savedFavs = JSON.parse(localStorage.getItem('favorites')) || [];
     const savedList = JSON.parse(localStorage.getItem('shoppingList')) || [];
@@ -67,33 +75,41 @@ export default function Recipe() {
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
   if (!recipe) return <p>No recipe found.</p>;
 
-return (
-  <div className="recipe-detail">
-    <h1>{recipe.title}</h1>
-    {recipe.image && <img className="recipe-image" src={recipe.image} alt={recipe.title} />}
+  return (
+    <div className="recipe-detail">
+      <h1>{recipe.title}</h1>
+      {recipe.image && <img className="recipe-image" src={recipe.image} alt={recipe.title} />}
 
-    <div className="recipe-actions">
-  <button className="favorite-btn" onClick={handleAddToFavorites}>
-    ❤️ Add to Favorites
-  </button>
-  <button className="shopping-btn" onClick={handleAddToShoppingList}>
-    🛒 Add to Shopping List
-  </button>
-</div>
+      <div className="recipe-actions">
+        <button className="favorite-btn" onClick={handleAddToFavorites}>
+          ❤️ Add to Favorites
+        </button>
+        <button className="shopping-btn" onClick={handleAddToShoppingList}>
+          🛒 Add to Shopping List
+        </button>
+      </div>
 
+      {/* Linked buttons to favorites and shopping list pages */}
+      <div className="linked-buttons" style={{ marginTop: '1rem' }}>
+        <Link to="/favorites" className="link-btn">
+          ❤️ View Favorites
+        </Link>
+        <Link to="/shopping-list" className="link-btn" style={{ marginLeft: '1rem' }}>
+          🛒 View Shopping List
+        </Link>
+      </div>
 
-    <h2>Ingredients</h2>
-    <ul>
-      {recipe.ingredients && recipe.ingredients.length > 0 ? (
-        recipe.ingredients.map((item, index) => <li key={index}>{item}</li>)
-      ) : (
-        <li>No ingredients available</li>
-      )}
-    </ul>
+      <h2>Ingredients</h2>
+      <ul>
+        {recipe.ingredients && recipe.ingredients.length > 0 ? (
+          recipe.ingredients.map((item, index) => <li key={index}>{item}</li>)
+        ) : (
+          <li>No ingredients available</li>
+        )}
+      </ul>
 
-    <h2>Instructions</h2>
-    <p>{recipe.instructions || 'No instructions available.'}</p>
-  </div>
-);
-
+      <h2>Instructions</h2>
+      <p>{recipe.instructions || 'No instructions available.'}</p>
+    </div>
+  );
 }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 export default function ShoppingList() {
   const [shoppingList, setShoppingList] = useState([]);
@@ -9,12 +9,7 @@ export default function ShoppingList() {
   }, []);
 
   if (shoppingList.length === 0) {
-    return (
-      <div>
-        <h2>Shopping List</h2>
-        <p>Your shopping list is empty.</p>
-      </div>
-    );
+    return <p>No ingredients in your shopping list.</p>;
   }
 
   return (
