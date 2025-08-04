@@ -10,16 +10,14 @@ export default function Recipe() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+useEffect(() => {
   const fetchRecipe = async () => {
     try {
       const res = await axios.get(`http://localhost:5000/api/recipes/${id}`);
-      console.log('Fetched recipes:', res.data.recipes);
-      setRecipes(res.data.recipes || res.data);
-      setFromCache(res.data.fromCache || false);
-      setRecipe(res.data.recipe);
-      console.log('Fetched Recipe:', res.data.recipe);
+      console.log('Fetched recipe:', res.data.recipe);
+      setRecipe(res.data.recipe || null);
     } catch (err) {
+      console.error(err);
       setError('Failed to load recipe');
     } finally {
       setLoading(false);

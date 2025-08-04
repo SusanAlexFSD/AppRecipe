@@ -61,10 +61,21 @@ exports.getRecipesByCategory = async (req, res) => {
   try {
     const cached = await CategoryCache.findOne({ category: name });
 
-    if (cached && cached.createdAt > oneHourAgo) {
-      console.log('Serving category recipes from cache');
-      return res.json({ recipes: cached.data, fromCache: true });
-    }
+  if (cached && cached.createdAt > oneHourAgo) {
+  console.log('Serving category recipes from cache');
+  
+  // Flatten and map cached.data to ensure shape is consistent
+  const flattened = cached.data.map(item => ({
+    apiId: item.apiId || item.idMeal || item._id,
+    title: item.title || item.strMeal || 'Untitled Recipe',
+    image: item.image || item.strMealThumb || '',
+    category: cached.category,
+    ingredients: item.ingredients || [],
+  }));
+
+  return res.json({ recipes: flattened, fromCache: true });
+}
+
 
     // Fetch from external API
     const response = await axios.get(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${name}`);
@@ -97,34 +108,53 @@ exports.getRecipesByCategory = async (req, res) => {
 
 // 📄 GET /api/recipes/:id - fetch recipe by apiId from Recipe collection or external API
 exports.getRecipeById = async (req, res) => {
-  const { id } = req.params;
+  const id = req.params.id;
+  console.log('Received recipe ID:', id);
 
   try {
+    // First check if recipe exists in database
     const cached = await Recipe.findOne({ apiId: id });
     if (cached) {
-      return res.json({ fromCache: true, recipe: cached });
+      console.log('Found cached recipe for ID:', id);
+      console.log('Found recipe in DB:', cached.title);
+      return res.json({ recipe: cached, fromCache: true });
     }
 
+    // If not in database, fetch from external API
+    console.log('Recipe not found in DB, fetching from MealDB API...');
     const response = await axios.get(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`);
+    console.log('MealDB API response:', response.data);
+
     const meal = response.data.meals?.[0];
 
     if (!meal) {
+      console.log('No meal found for ID:', id);
       return res.status(404).json({ message: `No recipe found with ID '${id}'` });
     }
 
-    const newRecipe = new Recipe({
+    // Extract ingredients properly
+    const ingredients = getIngredients(meal);
+    console.log('Ingredients parsed:', ingredients);
+
+    // Create recipe object with all required fields
+    const recipe = {
       apiId: meal.idMeal,
       title: meal.strMeal,
       image: meal.strMealThumb,
       instructions: meal.strInstructions,
-      ingredients: getIngredients(meal),
-    });
+      ingredients: ingredients, // Fixed: actually use the extracted ingredients
+      category: meal.strCategory?.toLowerCase()
+    };
 
-    await newRecipe.save();
+    // Save to database
+    const newRecipe = await Recipe.create(recipe);
+    console.log('Recipe cached:', newRecipe.apiId);
+    console.log('Saved new recipe:', newRecipe.title);
 
-    res.json({ fromCache: false, recipe: newRecipe });
+    res.json({ recipe: newRecipe, fromCache: false });
+
   } catch (error) {
-    console.error(`Error fetching recipe ID ${id}:`, error.message);
-    res.status(500).json({ message: 'Failed to get recipe by ID' });
+    console.error('Error fetching recipe:', error);
+    res.status(500).json({ message: 'Internal Server Error' });
   }
 };

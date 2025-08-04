@@ -233,7 +233,7 @@ export default function Recipes() {
                   No image available
                 </div>
               )}
-              <Link to={`/recipe/${recipe.apiId || recipe._id}`}>
+              <Link to={`/recipe/${recipe.apiId}`}>
                 <button style={{ 
                   width: '100%',
                   padding: '8px',
