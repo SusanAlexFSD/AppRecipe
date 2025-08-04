@@ -61,21 +61,10 @@ exports.getRecipesByCategory = async (req, res) => {
   try {
     const cached = await CategoryCache.findOne({ category: name });
 
-  if (cached && cached.createdAt > oneHourAgo) {
-  console.log('Serving category recipes from cache');
-  
-  // Flatten and map cached.data to ensure shape is consistent
-  const flattened = cached.data.map(item => ({
-    apiId: item.apiId || item.idMeal || item._id,
-    title: item.title || item.strMeal || 'Untitled Recipe',
-    image: item.image || item.strMealThumb || '',
-    category: cached.category,
-    ingredients: item.ingredients || [],
-  }));
-
-  return res.json({ recipes: flattened, fromCache: true });
-}
-
+    if (cached && cached.createdAt > oneHourAgo) {
+      console.log('Serving category recipes from cache');
+      return res.json({ recipes: cached.data, fromCache: true });
+    }
 
     // Fetch from external API
     const response = await axios.get(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${name}`);
@@ -105,56 +94,71 @@ exports.getRecipesByCategory = async (req, res) => {
 };
 
 
+exports.testDbAndApi = async (req, res) => {
+  try {
+    // Test DB find
+    const testFind = await Recipe.findOne();
+    console.log('Test find result:', testFind);
+
+    // Test external API fetch
+    const response = await axios.get('https://www.themealdb.com/api/json/v1/1/lookup.php?i=52977');
+    const meal = response.data.meals?.[0];
+    console.log('API meal:', meal ? meal.strMeal : 'No meal');
+
+    res.json({ testFind, mealName: meal?.strMeal });
+  } catch (err) {
+    console.error('Test endpoint error:', err);
+    res.status(500).json({ message: 'Test failed', error: err.message });
+  }
+};
+
+
+
 
 // 📄 GET /api/recipes/:id - fetch recipe by apiId from Recipe collection or external API
 exports.getRecipeById = async (req, res) => {
-  const id = req.params.id;
-  console.log('Received recipe ID:', id);
+  const { id } = req.params;
+  console.log(`Fetching recipe with ID: ${id}`);
 
   try {
-    // First check if recipe exists in database
     const cached = await Recipe.findOne({ apiId: id });
     if (cached) {
-      console.log('Found cached recipe for ID:', id);
-      console.log('Found recipe in DB:', cached.title);
-      return res.json({ recipe: cached, fromCache: true });
+      console.log('Serving recipe from cache');
+      return res.json({ fromCache: true, recipe: cached.toObject() });
     }
 
-    // If not in database, fetch from external API
-    console.log('Recipe not found in DB, fetching from MealDB API...');
+    console.log('Recipe not in cache, fetching from API...');
     const response = await axios.get(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`);
-    console.log('MealDB API response:', response.data);
-
     const meal = response.data.meals?.[0];
 
     if (!meal) {
-      console.log('No meal found for ID:', id);
+      console.log(`No recipe found with ID '${id}'`);
       return res.status(404).json({ message: `No recipe found with ID '${id}'` });
     }
 
-    // Extract ingredients properly
-    const ingredients = getIngredients(meal);
-    console.log('Ingredients parsed:', ingredients);
-
-    // Create recipe object with all required fields
-    const recipe = {
+    const newRecipe = new Recipe({
       apiId: meal.idMeal,
       title: meal.strMeal,
       image: meal.strMealThumb,
       instructions: meal.strInstructions,
-      ingredients: ingredients, // Fixed: actually use the extracted ingredients
-      category: meal.strCategory?.toLowerCase()
-    };
+      ingredients: getIngredients(meal),
+      category: meal.strCategory ? meal.strCategory.toLowerCase() : undefined,
+    });
 
-    // Save to database
-    const newRecipe = await Recipe.create(recipe);
-    console.log('Recipe cached:', newRecipe.apiId);
-    console.log('Saved new recipe:', newRecipe.title);
+    try {
+      await newRecipe.save();
+      console.log('New recipe saved to DB');
+    } catch (saveErr) {
+      console.warn('Failed to save recipe to DB:', saveErr.message);
+      // Continue even if save fails
+    }
 
-    res.json({ recipe: newRecipe, fromCache: false });
+    return res.json({ fromCache: false, recipe: newRecipe.toObject() });
 
   } catch (error) {
-    console.error('Error fetching recipe:', error);
-    res.status(500).json({ message: 'Internal Server Error' });
-  }
+  console.error(`Error fetching recipe ID ${id}:`, error);
+  return res.status(500).json({ message: 'Failed to get recipe by ID', error: error.message });
+}
+
 };
+

@@ -4,8 +4,16 @@ const axios = require('axios');
 const mongoose = require('mongoose');
 const Recipe = require('../models/Recipe');
 const CategoryCache = require('../models/CategoryCache');
+const recipesController = require('../controllers/recipeController.js');
 
-// Helper function to extract ingredients from external API
+router.get('/test', recipesController.testDbAndApi);
+router.get('/', recipesController.getRecipes);
+router.get('/category/:category', recipesController.getRecipesByCategory);
+router.get('/:id', recipesController.getRecipeById);
+
+
+
+// Helper function (clean and standalone)
 function getIngredients(meal) {
   const ingredients = [];
   for (let i = 1; i <= 20; i++) {
@@ -16,8 +24,9 @@ function getIngredients(meal) {
     }
   }
   return ingredients;
+}
 
-  // Add this route temporarily
+// Temporary route to clear all caches (outside of any function)
 router.delete('/clear-all-cache', async (req, res) => {
   try {
     await CategoryCache.deleteMany({});
@@ -27,12 +36,9 @@ router.delete('/clear-all-cache', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
-}
 
-// ✅ GET /api/recipes/test
-router.get('/test', (req, res) => {
-  res.json({ message: 'Test route working!' });
-});
+
+
 
 // ✅ GET /api/recipes - Fetch recent recipes from Recipe collection
 router.get('/', async (req, res) => {
@@ -196,18 +202,18 @@ router.get('/:id', async (req, res) => {
   console.log('Fetching recipe by ID:', id);
 
   try {
-    // Try DB first
+    // 1. Try DB first
     const cachedRecipe = await Recipe.findOne({ apiId: id }).lean();
     if (cachedRecipe) {
       console.log('Found recipe in DB:', cachedRecipe.title);
       return res.json({ fromCache: true, recipe: cachedRecipe });
     }
 
-    // Fetch from TheMealDB if not found in DB
+    // 2. Fetch from TheMealDB if not found in DB
     console.log('Fetching from TheMealDB API...');
     const response = await axios.get(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`);
     const meal = response.data.meals?.[0];
-
+    
     if (!meal) {
       console.log('Meal not found in external API for ID:', id);
       return res.status(404).json({ message: 'Recipe not found' });
@@ -224,16 +230,21 @@ router.get('/:id', async (req, res) => {
       category: meal.strCategory?.toLowerCase(),
     });
 
+    console.log('Attempting to save new recipe:', newRecipe.title);
+
     await newRecipe.save();
+
     console.log('Saved new recipe:', newRecipe.title);
 
     return res.json({ fromCache: false, recipe: newRecipe.toObject() });
 
   } catch (error) {
     console.error('Error fetching recipe:', error);
-    return res.status(500).json({ message: 'Failed to fetch recipe' });
+    return res.status(500).json({ message: 'Failed to fetch recipe', error: error.message, error: error.message,   // <-- send error message to client
+    stack: error.stack   });
   }
 });
+
 
 
 

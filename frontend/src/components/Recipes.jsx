@@ -190,65 +190,73 @@ export default function Recipes() {
       {/* Recipe Grid */}
       <div className="recipe-grid">
         {filteredRecipes.map(recipe => {
-          // Use apiId as primary identifier for routing
-          const id = recipe.apiId || recipe.idMeal || recipe._id || Math.random();
-          // Handle both transformed (title/image) and raw API (strMeal/strMealThumb) formats
-          const title = recipe.title || recipe.strMeal || 'Untitled Recipe';
-          const image = recipe.image || recipe.strMealThumb || '';
+  // Get id consistently from known fields
+  const id = recipe.apiId || recipe.idMeal || recipe._id;
 
-          console.log('Rendering recipe:', { id, title, image, raw: recipe }); // Debug line
+  // Defensive check: skip if no id
+  if (!id) {
+    console.warn('Recipe missing ID, skipping:', recipe);
+    return null;
+  }
 
-          return (
-            <div className="recipe-card" key={id}>
-              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.1em' }}>{title}</h3>
-              {image ? (
-                <img 
-                  src={image} 
-                  alt={title} 
-                  style={{ 
-                    width: '100%', 
-                    height: '200px',
-                    objectFit: 'cover',
-                    borderRadius: '8px',
-                    marginBottom: '10px'
-                  }} 
-                  onError={(e) => {
-                    e.target.style.display = 'none';
-                    e.target.nextSibling.style.display = 'block';
-                  }}
-                />
-              ) : null}
-              {!image && (
-                <div style={{ 
-                  width: '100%', 
-                  height: '200px', 
-                  backgroundColor: '#f8f9fa',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  borderRadius: '8px',
-                  marginBottom: '10px',
-                  color: '#666'
-                }}>
-                  No image available
-                </div>
-              )}
-              <Link to={`/recipe/${recipe.apiId || recipe._id}`}>
-                <button style={{ 
-                  width: '100%',
-                  padding: '8px',
-                  backgroundColor: '#007bff',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '4px',
-                  cursor: 'pointer'
-                }}>
-                  View Recipe
-                </button>
-              </Link>
-            </div>
-          );
-        })}
+  const title = recipe.title || recipe.strMeal || 'Untitled Recipe';
+  const image = recipe.image || recipe.strMealThumb || '';
+
+  return (
+    <div className="recipe-card" key={id}>
+      <h3 style={{ margin: '0 0 10px 0', fontSize: '1.1em' }}>{title}</h3>
+      {image ? (
+        <img
+          src={image}
+          alt={title}
+          style={{
+            width: '100%',
+            height: '200px',
+            objectFit: 'cover',
+            borderRadius: '8px',
+            marginBottom: '10px',
+          }}
+          onError={(e) => {
+            e.target.style.display = 'none';
+            e.target.nextSibling.style.display = 'block';
+          }}
+        />
+      ) : (
+        <div
+          style={{
+            width: '100%',
+            height: '200px',
+            backgroundColor: '#f8f9fa',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '8px',
+            marginBottom: '10px',
+            color: '#666',
+          }}
+        >
+          No image available
+        </div>
+      )}
+      <Link to={`/recipe/${id}`}>
+        <button
+          style={{
+            width: '100%',
+            padding: '8px',
+            backgroundColor: '#007bff',
+            color: 'white',
+            border: 'none',
+            borderRadius: '4px',
+            cursor: 'pointer',
+          }}
+        >
+          View Recipe
+        </button>
+      </Link>
+    </div>
+  );
+})}
+
       </div>
 
       </div>
