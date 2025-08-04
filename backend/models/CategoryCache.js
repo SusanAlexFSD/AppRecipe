@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const categoryCacheSchema = new mongoose.Schema({
-  category: { type: String, required: true, unique: true },
+  category: { type: String, required: true },
   data: [
     {
       apiId: String,

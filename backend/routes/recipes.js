@@ -193,25 +193,28 @@ router.get('/random', async (req, res) => {
 // ✅ GET /api/recipes/:id
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
-  
+  console.log('Fetching recipe by ID:', id);
+
   try {
-    // First, try to fetch from local DB
-    const recipe = await Recipe.findOne({ apiId: id }).lean();
-    if (recipe) {
-      console.log('Found recipe in database:', recipe.title);
-      return res.json({ fromCache: true, recipe });
+    // Try DB first
+    const cachedRecipe = await Recipe.findOne({ apiId: id }).lean();
+    if (cachedRecipe) {
+      console.log('Found recipe in DB:', cachedRecipe.title);
+      return res.json({ fromCache: true, recipe: cachedRecipe });
     }
 
-    // Otherwise, fetch from external API
-    console.log('Fetching recipe from API:', id);
+    // Fetch from TheMealDB if not found in DB
+    console.log('Fetching from TheMealDB API...');
     const response = await axios.get(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`);
     const meal = response.data.meals?.[0];
-    
+
     if (!meal) {
+      console.log('Meal not found in external API for ID:', id);
       return res.status(404).json({ message: 'Recipe not found' });
     }
 
     const ingredients = getIngredients(meal);
+
     const newRecipe = new Recipe({
       apiId: meal.idMeal,
       title: meal.strMeal,
@@ -224,12 +227,15 @@ router.get('/:id', async (req, res) => {
     await newRecipe.save();
     console.log('Saved new recipe:', newRecipe.title);
 
-    res.json({ fromCache: false, recipe: newRecipe.toObject() });
+    return res.json({ fromCache: false, recipe: newRecipe.toObject() });
+
   } catch (error) {
     console.error('Error fetching recipe:', error);
-    res.status(500).json({ message: 'Failed to fetch recipe' });
+    return res.status(500).json({ message: 'Failed to fetch recipe' });
   }
 });
+
+
 
 // ✅ DELETE /api/recipes/cache - Helper to clear all caches
 router.delete('/cache', async (req, res) => {
