@@ -137,7 +137,7 @@ export default function Recipes() {
         </Link>
 
         {/* Link to Shopping List Page */}
-        <Link to="/shopping-list" style={{ textDecoration: 'none' }}>
+        <Link to="/shoppingList" style={{ textDecoration: 'none' }}>
           <button
             style={{
               marginRight: '10px',

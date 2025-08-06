@@ -56,20 +56,23 @@ export default function Recipe() {
     localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
   }, [shoppingList]);
 
-  useEffect(() => {
-    const fetchRecipe = async () => {
-      try {
-        const res = await axios.get(`http://localhost:5000/api/recipes/${id}`);
-        setRecipe(res.data.recipe);
-      } catch (err) {
-        setError('Failed to load recipe');
-      } finally {
-        setLoading(false);
-      }
-    };
+useEffect(() => {
+  const fetchRecipe = async () => {
+    try {
+      const res = await axios.get(`http://localhost:5000/api/recipes/${id}`);
+      console.log('API Response:', res.data); // 👈 Check this
+      setRecipe(res.data.recipe);
+    } catch (err) {
+      console.error('API Error:', err);
+      setError('Failed to load recipe');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchRecipe();
-  }, [id]);
+  fetchRecipe();
+}, [id]);
+
 
   if (loading) return <p>Loading recipe...</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
@@ -94,7 +97,7 @@ export default function Recipe() {
         <Link to="/favorites" className="link-btn">
           ❤️ View Favorites
         </Link>
-        <Link to="/shopping-list" className="link-btn" style={{ marginLeft: '1rem' }}>
+        <Link to="/shoppingList" className="link-btn" style={{ marginLeft: '1rem' }}>
           🛒 View Shopping List
         </Link>
       </div>

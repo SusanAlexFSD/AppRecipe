@@ -13,7 +13,7 @@ export default function NavBar() {
       {user ? (
         <>
           <Link to="/favorites" style={{ marginRight: '1rem' }}>Favorites</Link>
-          <Link to="/shopping-list" style={{ marginRight: '1rem' }}>Shopping List</Link>
+          <Link to="/shoppingList" style={{ marginRight: '1rem' }}>Shopping List</Link>
           <span style={{ marginRight: '1rem' }}>
             👋 Welcome, {user.username || user.email || 'User'}
           </span>
