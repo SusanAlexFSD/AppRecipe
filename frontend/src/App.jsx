@@ -10,6 +10,7 @@ import ShoppingList from './components/ShoppingList.jsx';
 import Favorites from './components/Favorites.jsx';
 import Recipe from './pages/Recipe.jsx';
 
+
 function App() {
   return (
     <Router>

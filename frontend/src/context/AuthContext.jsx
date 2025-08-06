@@ -1,22 +1,24 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { createContext, useState } from 'react';
 
 export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
-  const [token, setToken] = useState(null);
-
-  // Load from localStorage on first render
-  useEffect(() => {
-    const savedToken = localStorage.getItem('token');
-    const savedUser = localStorage.getItem('user');
-
-    if (savedToken && savedUser) {
-      setToken(savedToken);
-      setUser(JSON.parse(savedUser));
+  // ✅ Safe lazy initialization for user
+  const [user, setUser] = useState(() => {
+    try {
+      const storedUser = localStorage.getItem('user');
+      return storedUser ? JSON.parse(storedUser) : null;
+    } catch (err) {
+      console.error('Failed to parse user from localStorage:', err);
+      localStorage.removeItem('user');
+      return null;
     }
-  }, []);
+  });
 
+  // ✅ Just read token as string (no JSON parsing needed)
+  const [token, setToken] = useState(() => localStorage.getItem('token'));
+
+  // Login: store both in state and localStorage
   const login = (userData, authToken) => {
     setUser(userData);
     setToken(authToken);
