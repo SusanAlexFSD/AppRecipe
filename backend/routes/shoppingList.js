@@ -19,12 +19,11 @@ router.get('/:userId', async (req, res) => {
 
 // ✅ POST: add to shopping list
 // ✅ POST: add recipe + ingredients to shopping list
-router.post('/:userId', async (req, res) => {
-  const { userId } = req.params;
-  const { recipeName, ingredients } = req.body;
+router.post('/', async (req, res) => {
+  const { userId, recipeName, ingredients } = req.body;
 
-  if (!recipeName || !Array.isArray(ingredients)) {
-    return res.status(400).json({ error: 'Recipe name and ingredients are required' });
+  if (!userId || !recipeName || !Array.isArray(ingredients)) {
+    return res.status(400).json({ error: 'userId, recipe name and ingredients are required' });
   }
 
   try {
@@ -37,7 +36,6 @@ router.post('/:userId', async (req, res) => {
     const existingRecipe = list.items.find(item => item.recipeName === recipeName);
 
     if (existingRecipe) {
-      // Avoid duplicates using Set
       existingRecipe.ingredients = [...new Set([...existingRecipe.ingredients, ...ingredients])];
     } else {
       list.items.push({ recipeName, ingredients });
@@ -48,9 +46,10 @@ router.post('/:userId', async (req, res) => {
     res.json({ list: list.items });
   } catch (err) {
     console.error('Failed to update shopping list:', err);
-    res.status(500).json({ error: 'Server error' });
+    res.status(500).json({ message: 'Internal server error' });
   }
 });
+
 
 
 module.exports = router;

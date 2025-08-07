@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from '../api/axios';
+import { AuthContext } from '../context/AuthContext';
 import './Recipe.css';
 
 export default function Recipe() {
@@ -11,6 +12,9 @@ export default function Recipe() {
   const [favorites, setFavorites] = useState([]);
   const [shoppingList, setShoppingList] = useState([]);
 
+  // ✅ Get user from AuthContext
+  const { user } = useContext(AuthContext);
+
   // ✅ Handle Favorites
   const handleAddToFavorites = () => {
     if (recipe && !favorites.includes(recipe.id || recipe._id || recipe.apiId)) {
@@ -19,22 +23,26 @@ export default function Recipe() {
     }
   };
 
-  const addToShoppingList = (newIngredients) => {
-    setShoppingList(prevList => {
-      // Combine old + new ingredients
-      const combined = [...prevList, ...newIngredients];
-      // Remove duplicates
-      const unique = Array.from(new Set(combined));
-      // Save to localStorage
-      localStorage.setItem('shoppingList', JSON.stringify(unique));
-      return unique;
-    });
-  };
+  // ✅ Handle Shopping List (MongoDB)
+  const handleAddToShoppingList = async () => {
+    if (!user?._id) {
+      alert('You must be logged in to add to shopping list.');
+      return;
+    }
 
-  const handleAddToShoppingList = () => {
-    if (recipe?.ingredients?.length) {
-      addToShoppingList(recipe.ingredients);
-      alert('Ingredients added to shopping list!');
+    if (recipe?.ingredients?.length && recipe?.title) {
+      try {
+        await axios.post('/shoppingList', {
+          userId: user._id,
+          recipeName: recipe.title,
+          ingredients: recipe.ingredients,
+        });
+
+        alert('Ingredients added to shopping list!');
+      } catch (err) {
+        console.error('Failed to save shopping list:', err);
+        alert('Failed to save shopping list.');
+      }
     }
   };
 
@@ -56,23 +64,23 @@ export default function Recipe() {
     localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
   }, [shoppingList]);
 
-useEffect(() => {
-  const fetchRecipe = async () => {
-    try {
-      const res = await axios.get(`http://localhost:5000/api/recipes/${id}`);
-      console.log('API Response:', res.data); // 👈 Check this
-      setRecipe(res.data.recipe);
-    } catch (err) {
-      console.error('API Error:', err);
-      setError('Failed to load recipe');
-    } finally {
-      setLoading(false);
-    }
-  };
+  // 🔁 Fetch recipe by ID
+  useEffect(() => {
+    const fetchRecipe = async () => {
+      try {
+        const res = await axios.get(`http://localhost:5000/api/recipes/${id}`);
+        console.log('API Response:', res.data);
+        setRecipe(res.data.recipe);
+      } catch (err) {
+        console.error('API Error:', err);
+        setError('Failed to load recipe');
+      } finally {
+        setLoading(false);
+      }
+    };
 
-  fetchRecipe();
-}, [id]);
-
+    fetchRecipe();
+  }, [id]);
 
   if (loading) return <p>Loading recipe...</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
