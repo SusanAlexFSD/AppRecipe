@@ -87,6 +87,12 @@ p {
   background-color: #e60000;
 }
 
+.favorite-btn.remove {
+  background-color: red;
+  color: white;
+}
+
+
 .shopping-btn {
   background-color: #4CAF50;
   color: white;

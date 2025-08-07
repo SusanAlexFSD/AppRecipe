@@ -3,6 +3,8 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 
+const favoritesRoutes = require('./routes/favorites');
+
 const app = express();
 
 // 📝 Request logging middleware (log all requests)
@@ -41,6 +43,7 @@ console.log('✅ Routes imported successfully');
 app.use('/api/users', userRoutes);
 app.use('/api/recipes', recipeRoutes);
 app.use('/api/shoppingList', shoppingListRoutes); // ✅ Mounted shoppingList route
+app.use('/api/favorites', favoritesRoutes);
 
 console.log('✅ Routes mounted successfully');
 
@@ -73,6 +76,7 @@ mongoose.connect(process.env.MONGO_URI)
     process.exit(1);
   });
 
+  
 // ⚠️ Global error listeners
 process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled Promise Rejection:', err);

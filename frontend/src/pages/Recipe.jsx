@@ -6,24 +6,72 @@ import './Recipe.css';
 
 export default function Recipe() {
   const { id } = useParams();
+  const { user } = useContext(AuthContext);
+
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [favorites, setFavorites] = useState([]);
   const [shoppingList, setShoppingList] = useState([]);
 
-  // ✅ Get user from AuthContext
-  const { user } = useContext(AuthContext);
+  const getRecipeId = (r) => r.id || r._id || r.apiId;
 
-  // ✅ Handle Favorites
-  const handleAddToFavorites = () => {
-    if (recipe && !favorites.includes(recipe.id || recipe._id || recipe.apiId)) {
-      setFavorites([...favorites, recipe]);
+  // ✅ Add to Favorites
+  const handleAddToFavorites = async () => {
+    if (!recipe) return;
+
+    const userId = user?._id || null;
+    const recipeId = getRecipeId(recipe);
+
+    // Prevent duplicates
+    if (favorites.some(fav => getRecipeId(fav) === recipeId)) {
+      alert('Already in favorites');
+      return;
+    }
+
+    try {
+      if (userId) {
+        await axios.post('/favorites/add', {
+          userId,
+          recipeId,
+          recipeTitle: recipe.title,
+          recipeImage: recipe.image,
+        });
+      }
+
+      setFavorites((prev) => [...prev, recipe]);
       alert('Added to favorites!');
+    } catch (err) {
+      console.error('Failed to add to favorites:', err);
+      alert('Failed to add to favorites.');
     }
   };
 
-  // ✅ Handle Shopping List (MongoDB)
+  // ❌ Remove from Favorites
+  const handleRemoveFromFavorites = async () => {
+    if (!recipe) return;
+
+    const userId = user?._id || null;
+    const recipeId = getRecipeId(recipe);
+
+    try {
+      if (userId) {
+        await axios.delete('/favorites/remove', {
+          data: { userId, recipeId },
+        });
+      }
+
+      setFavorites((prev) =>
+        prev.filter((fav) => getRecipeId(fav) !== recipeId)
+      );
+      alert('Removed from favorites!');
+    } catch (err) {
+      console.error('Failed to remove from favorites:', err);
+      alert('Failed to remove from favorites.');
+    }
+  };
+
+  // ✅ Add to Shopping List
   const handleAddToShoppingList = async () => {
     if (!user?._id) {
       alert('You must be logged in to add to shopping list.');
@@ -46,30 +94,50 @@ export default function Recipe() {
     }
   };
 
-  // 🔁 Load from localStorage on mount
+  // 🔁 Load data on mount (guests: from localStorage, users: from DB)
   useEffect(() => {
-    const savedFavs = JSON.parse(localStorage.getItem('favorites')) || [];
+    if (!user) {
+      const savedFavs = JSON.parse(localStorage.getItem('favorites')) || [];
+      setFavorites(savedFavs);
+    }
+
     const savedList = JSON.parse(localStorage.getItem('shoppingList')) || [];
-    setFavorites(savedFavs);
     setShoppingList(savedList);
-  }, []);
+  }, [user]);
 
-  // 💾 Save to localStorage when favorites change
+  // 💾 Save favorites to localStorage only for guests
   useEffect(() => {
-    localStorage.setItem('favorites', JSON.stringify(favorites));
-  }, [favorites]);
+    if (!user) {
+      localStorage.setItem('favorites', JSON.stringify(favorites));
+    }
+  }, [favorites, user]);
 
-  // 💾 Save to localStorage when shopping list changes
+  // 💾 Save shopping list to localStorage for everyone
   useEffect(() => {
     localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
   }, [shoppingList]);
+
+  // 🔁 Fetch favorites for logged-in user
+  useEffect(() => {
+    const fetchFavorites = async () => {
+      if (!user?._id) return;
+
+      try {
+        const res = await axios.get(`/favorites/${user._id}`);
+        setFavorites(res.data.favorites || []);
+      } catch (err) {
+        console.error('Failed to load favorites:', err);
+      }
+    };
+
+    fetchFavorites();
+  }, [user]);
 
   // 🔁 Fetch recipe by ID
   useEffect(() => {
     const fetchRecipe = async () => {
       try {
         const res = await axios.get(`http://localhost:5000/api/recipes/${id}`);
-        console.log('API Response:', res.data);
         setRecipe(res.data.recipe);
       } catch (err) {
         console.error('API Error:', err);
@@ -82,25 +150,37 @@ export default function Recipe() {
     fetchRecipe();
   }, [id]);
 
+  // ⏳ UI States
   if (loading) return <p>Loading recipe...</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
   if (!recipe) return <p>No recipe found.</p>;
 
+  const isFavorited = favorites.some(
+    (fav) => getRecipeId(fav) === getRecipeId(recipe)
+  );
+
   return (
     <div className="recipe-detail">
       <h1>{recipe.title}</h1>
-      {recipe.image && <img className="recipe-image" src={recipe.image} alt={recipe.title} />}
+      {recipe.image && (
+        <img className="recipe-image" src={recipe.image} alt={recipe.title} />
+      )}
 
       <div className="recipe-actions">
-        <button className="favorite-btn" onClick={handleAddToFavorites}>
-          ❤️ Add to Favorites
-        </button>
+        {isFavorited ? (
+          <button className="favorite-btn remove" onClick={handleRemoveFromFavorites}>
+            ❌ Remove from Favorites
+          </button>
+        ) : (
+          <button className="favorite-btn" onClick={handleAddToFavorites}>
+            ❤️ Add to Favorites
+          </button>
+        )}
         <button className="shopping-btn" onClick={handleAddToShoppingList}>
           🛒 Add to Shopping List
         </button>
       </div>
 
-      {/* Linked buttons to favorites and shopping list pages */}
       <div className="linked-buttons" style={{ marginTop: '1rem' }}>
         <Link to="/favorites" className="link-btn">
           ❤️ View Favorites
