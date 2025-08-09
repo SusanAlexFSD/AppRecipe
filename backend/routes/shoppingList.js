@@ -51,5 +51,65 @@ router.post('/', async (req, res) => {
 });
 
 
+// ✅ DELETE ingredient from a recipe
+router.delete('/:userId/:recipeName/ingredient/:ingredient', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const recipeName = decodeURIComponent(req.params.recipeName);
+    const ingredient = decodeURIComponent(req.params.ingredient);
+
+    const list = await ShoppingList.findOne({ userId });
+    if (!list) return res.status(404).json({ error: 'Shopping list not found' });
+
+    const recipe = list.items.find(r => r.recipeName === recipeName);
+    if (!recipe) return res.status(404).json({ error: 'Recipe not found' });
+
+    recipe.ingredients = recipe.ingredients.filter(ing => ing !== ingredient);
+    await list.save();
+
+    res.json({ list: list.items });
+  } catch (err) {
+    console.error('❌ Failed to remove ingredient:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ✅ DELETE an entire recipe
+router.delete('/:userId/:recipeName', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const recipeName = decodeURIComponent(req.params.recipeName);
+
+    const list = await ShoppingList.findOne({ userId });
+    if (!list) return res.status(404).json({ error: 'Shopping list not found' });
+
+    list.items = list.items.filter(item => item.recipeName !== recipeName);
+    await list.save();
+
+    res.json({ list: list.items });
+  } catch (err) {
+    console.error('❌ Failed to remove recipe:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// ✅ DELETE all recipes
+router.delete('/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const list = await ShoppingList.findOne({ userId });
+    if (!list) return res.status(404).json({ error: 'Shopping list not found' });
+
+    list.items = [];
+    await list.save();
+
+    res.json({ list: [] });
+  } catch (err) {
+    console.error('❌ Failed to clear shopping list:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
 
 module.exports = router;

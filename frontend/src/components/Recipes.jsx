@@ -208,9 +208,7 @@ export default function Recipes() {
       {/* Status Messages */}
       {loading && <p>Loading...</p>}
       {error && <p style={{ color: 'red' }}>{error}</p>}
-      {fromCache && (
-        <p style={{ fontStyle: 'italic', color: 'gray' }}>Loaded from cache</p>
-      )}
+    
 
       {/* Recipes Grid */}
       <div className="recipe-grid">

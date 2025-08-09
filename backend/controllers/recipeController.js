@@ -45,7 +45,7 @@ exports.getTestRecipes = async (req, res) => {
 // 📦 GET /api/recipes - fetch recent recipes from Recipe collection
 exports.getRecipes = async (req, res) => {
   try {
-    const recipes = await Recipe.find({ apiId: { $exists: true } }).limit(20);
+    const recipes = await Recipe.find({ apiId: { $exists: true } }).limit(100);
     res.json(recipes);
   } catch (error) {
     console.error('Error in getRecipes:', error.message);

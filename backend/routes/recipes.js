@@ -57,30 +57,30 @@ router.get('/', async (req, res) => {
     console.log('Sample recipe:', recipes[0]);
 
     // If no proper recipes in database, fetch some from API
-    if (recipes.length === 0) {
-      console.log('No recipes in database, fetching from API...');
-      
-      const response = await axios.get('https://www.themealdb.com/api/json/v1/1/search.php?s=');
-      const meals = response.data.meals?.slice(0, 10) || [];
-      
-      const newRecipes = meals.map(meal => ({
-        apiId: meal.idMeal,
-        title: meal.strMeal,
-        image: meal.strMealThumb,
-        instructions: meal.strInstructions,
-        ingredients: getIngredients(meal),
-        category: meal.strCategory?.toLowerCase()
-      }));
+   // If database has fewer than 100 recipes, fetch more from API
+if (recipes.length < 100) {
+  console.log(`Only ${recipes.length} recipes in DB, fetching more from API...`);
 
-      // Save to database
-      if (newRecipes.length > 0) {
-        await Recipe.insertMany(newRecipes, { ordered: false }).catch(err => {
-          console.log('Some recipes may already exist:', err.message);
-        });
-      }
+  const response = await axios.get('https://www.themealdb.com/api/json/v1/1/search.php?s=');
+  const meals = response.data.meals || [];
 
-      return res.json(newRecipes);
-    }
+  const newRecipes = meals.map(meal => ({
+    apiId: meal.idMeal,
+    title: meal.strMeal,
+    image: meal.strMealThumb,
+    instructions: meal.strInstructions,
+    ingredients: getIngredients(meal),
+    category: meal.strCategory?.toLowerCase()
+  }));
+
+  // Insert only new recipes
+  await Recipe.insertMany(newRecipes, { ordered: false }).catch(err => {
+    console.log('Some recipes already exist:', err.message);
+  });
+
+  return res.json(newRecipes);
+}
+
 
     res.json(recipes);
   } catch (error) {
