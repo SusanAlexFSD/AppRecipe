@@ -16,14 +16,13 @@ export default function Recipe() {
 
   const getRecipeId = (r) => r.id || r._id || r.apiId;
 
-  // ✅ Add to Favorites
+  // Add to Favorites
   const handleAddToFavorites = async () => {
     if (!recipe) return;
 
     const userId = user?._id || null;
     const recipeId = getRecipeId(recipe);
 
-    // Prevent duplicates
     if (favorites.some(fav => getRecipeId(fav) === recipeId)) {
       alert('Already in favorites');
       return;
@@ -47,7 +46,7 @@ export default function Recipe() {
     }
   };
 
-  // ❌ Remove from Favorites
+  // Remove from Favorites
   const handleRemoveFromFavorites = async () => {
     if (!recipe) return;
 
@@ -71,7 +70,7 @@ export default function Recipe() {
     }
   };
 
-  // ✅ Add to Shopping List
+  // Add to Shopping List
   const handleAddToShoppingList = async () => {
     if (!user?._id) {
       alert('You must be logged in to add to shopping list.');
@@ -94,7 +93,7 @@ export default function Recipe() {
     }
   };
 
-  // 🔁 Load data on mount (guests: from localStorage, users: from DB)
+  // Load favorites and shopping list from localStorage for guests
   useEffect(() => {
     if (!user) {
       const savedFavs = JSON.parse(localStorage.getItem('favorites')) || [];
@@ -105,19 +104,19 @@ export default function Recipe() {
     setShoppingList(savedList);
   }, [user]);
 
-  // 💾 Save favorites to localStorage only for guests
+  // Save favorites to localStorage only for guests
   useEffect(() => {
     if (!user) {
       localStorage.setItem('favorites', JSON.stringify(favorites));
     }
   }, [favorites, user]);
 
-  // 💾 Save shopping list to localStorage for everyone
+  // Save shopping list to localStorage for everyone
   useEffect(() => {
     localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
   }, [shoppingList]);
 
-  // 🔁 Fetch favorites for logged-in user
+  // Fetch favorites for logged-in users
   useEffect(() => {
     const fetchFavorites = async () => {
       if (!user?._id) return;
@@ -133,7 +132,7 @@ export default function Recipe() {
     fetchFavorites();
   }, [user]);
 
-  // 🔁 Fetch recipe by ID
+  // Fetch recipe by ID
   useEffect(() => {
     const fetchRecipe = async () => {
       try {
@@ -150,7 +149,6 @@ export default function Recipe() {
     fetchRecipe();
   }, [id]);
 
-  // ⏳ UI States
   if (loading) return <p>Loading recipe...</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
   if (!recipe) return <p>No recipe found.</p>;
@@ -160,47 +158,56 @@ export default function Recipe() {
   );
 
   return (
-    <div className="recipe-detail">
-      <h1>{recipe.title}</h1>
-      {recipe.image && (
-        <img className="recipe-image" src={recipe.image} alt={recipe.title} />
-      )}
+    <div style={{ padding: '20px' }}>
+      <nav style={{ marginBottom: '20px' }}>
+        <Link to="/">← Back to Recipes</Link>
+      </nav>
 
-      <div className="recipe-actions">
-        {isFavorited ? (
-          <button className="favorite-btn remove" onClick={handleRemoveFromFavorites}>
-            ❌ Remove from Favorites
-          </button>
-        ) : (
-          <button className="favorite-btn" onClick={handleAddToFavorites}>
-            ❤️ Add to Favorites
-          </button>
+      <div className="recipe-detail">
+        <h1>{recipe.title}</h1>
+        {recipe.image && (
+          <img className="recipe-image" src={recipe.image} alt={recipe.title} />
         )}
-        <button className="shopping-btn" onClick={handleAddToShoppingList}>
-          🛒 Add to Shopping List
-        </button>
+
+        <div className="recipe-actions">
+          {isFavorited ? (
+            <button
+              className="favorite-btn remove"
+              onClick={handleRemoveFromFavorites}
+            >
+              ❌ Remove from Favorites
+            </button>
+          ) : (
+            <button className="favorite-btn" onClick={handleAddToFavorites}>
+              ❤️ Add to Favorites
+            </button>
+          )}
+          <button className="shopping-btn" onClick={handleAddToShoppingList}>
+            🛒 Add to Shopping List
+          </button>
+        </div>
+
+        <div className="linked-buttons" style={{ marginTop: '1rem' }}>
+          <Link to="/favorites" className="link-btn">
+            ❤️ View Favorites
+          </Link>
+          <Link to="/shoppingList" className="link-btn" style={{ marginLeft: '1rem' }}>
+            🛒 View Shopping List
+          </Link>
+        </div>
+
+        <h2>Ingredients</h2>
+        <ul>
+          {recipe.ingredients && recipe.ingredients.length > 0 ? (
+            recipe.ingredients.map((item, index) => <li key={index}>{item}</li>)
+          ) : (
+            <li>No ingredients available</li>
+          )}
+        </ul>
+
+        <h2>Instructions</h2>
+        <p>{recipe.instructions || 'No instructions available.'}</p>
       </div>
-
-      <div className="linked-buttons" style={{ marginTop: '1rem' }}>
-        <Link to="/favorites" className="link-btn">
-          ❤️ View Favorites
-        </Link>
-        <Link to="/shoppingList" className="link-btn" style={{ marginLeft: '1rem' }}>
-          🛒 View Shopping List
-        </Link>
-      </div>
-
-      <h2>Ingredients</h2>
-      <ul>
-        {recipe.ingredients && recipe.ingredients.length > 0 ? (
-          recipe.ingredients.map((item, index) => <li key={index}>{item}</li>)
-        ) : (
-          <li>No ingredients available</li>
-        )}
-      </ul>
-
-      <h2>Instructions</h2>
-      <p>{recipe.instructions || 'No instructions available.'}</p>
     </div>
   );
 }
