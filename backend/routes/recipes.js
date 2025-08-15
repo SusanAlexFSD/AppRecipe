@@ -1,32 +1,158 @@
 const express = require('express');
 const router = express.Router();
 const axios = require('axios');
-const mongoose = require('mongoose');
 const Recipe = require('../models/Recipe');
 const CategoryCache = require('../models/CategoryCache');
-const recipesController = require('../controllers/recipeController.js');
 
-router.get('/test', recipesController.testDbAndApi);
-router.get('/', recipesController.getRecipes);
-router.get('/category/:category', recipesController.getRecipesByCategory);
-router.get('/:id', recipesController.getRecipeById);
-
-
-
-// Helper function (clean and standalone)
+// -------------------- Helper Functions --------------------
 function getIngredients(meal) {
   const ingredients = [];
+  if (!meal) return ingredients;
+
   for (let i = 1; i <= 20; i++) {
     const ingredient = meal[`strIngredient${i}`];
     const measure = meal[`strMeasure${i}`];
-    if (ingredient && ingredient.trim()) {
-      ingredients.push(`${measure ? measure.trim() : ''} ${ingredient.trim()}`.trim());
+    if (ingredient && ingredient.trim() && ingredient.trim().toLowerCase() !== 'null') {
+      const measureText = (measure && measure.trim() && measure.trim().toLowerCase() !== 'null') ? measure.trim() : '';
+      ingredients.push(measureText ? `${measureText} ${ingredient.trim()}`.trim() : ingredient.trim());
     }
   }
   return ingredients;
 }
 
-// Temporary route to clear all caches (outside of any function)
+// ==================== IMPORTANT: SPECIFIC ROUTES MUST COME FIRST ====================
+
+// Test route
+router.get('/test', (req, res) => res.json({ message: 'Recipes route working' }));
+
+// -------------------- Search Recipes (MUST BE BEFORE /:id) --------------------
+router.get('/search', async (req, res) => {
+  console.log('🔍 Search route hit with query:', req.query.q);
+  
+  const query = req.query.q || '';
+  
+  if (!query.trim()) {
+    return res.status(400).json({ message: 'Search query is required' });
+  }
+
+  try {
+    console.log(`Searching for: "${query}"`);
+    const response = await axios.get(`https://www.themealdb.com/api/json/v1/1/search.php?s=${encodeURIComponent(query)}`, { 
+      timeout: 15000 
+    });
+    
+    const meals = response.data.meals || [];
+    console.log(`Found ${meals.length} meals from API`);
+
+    if (!meals.length) {
+      return res.status(404).json({ message: 'No recipes found', recipes: [] });
+    }
+
+    const recipes = meals
+      .filter(meal => {
+        const hasId = meal?.idMeal;
+        if (!hasId) console.warn('Meal missing idMeal:', meal?.strMeal);
+        return hasId;
+      })
+      .map(meal => ({
+        apiId: meal.idMeal,
+        title: meal.strMeal || 'Untitled Recipe',
+        image: meal.strMealThumb || '',
+        instructions: meal.strInstructions || '',
+        ingredients: getIngredients(meal),
+        category: meal.strCategory?.toLowerCase() || ''
+      }));
+
+    console.log(`Processed ${recipes.length} valid recipes`);
+
+    if (recipes.length === 0) {
+      return res.status(404).json({ message: 'No valid recipes found', recipes: [] });
+    }
+
+    // Save recipes to database (optional - don't fail if this fails)
+    try {
+      const bulkOps = recipes.map(r => ({
+        updateOne: { 
+          filter: { apiId: r.apiId }, 
+          update: { $set: r }, 
+          upsert: true 
+        }
+      }));
+      
+      await Recipe.bulkWrite(bulkOps, { ordered: false });
+      console.log('✅ Recipes saved to database');
+    } catch (dbError) {
+      console.warn('⚠️ Database save failed (continuing anyway):', dbError.message);
+    }
+
+    res.json(recipes);
+  } catch (error) {
+    console.error('❌ Search error:', error?.response?.data || error.message);
+
+    if (error.response) {
+      res.status(502).json({ 
+        message: 'External API failed', 
+        error: error.response.status,
+        recipes: [] 
+      });
+    } else if (error.request) {
+      res.status(504).json({ 
+        message: 'No response from external API',
+        recipes: [] 
+      });
+    } else {
+      res.status(500).json({ 
+        message: 'Internal server error', 
+        error: error.message,
+        recipes: [] 
+      });
+    }
+  }
+});
+
+// -------------------- Category Routes (BEFORE /:id) --------------------
+router.get('/category/:category', async (req, res) => {
+  console.log('📂 Category route hit:', req.params.category);
+  
+  const category = req.params.category.toLowerCase();
+  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+
+  try {
+    const cached = await CategoryCache.findOne({ category });
+    if (cached && cached.createdAt > oneHourAgo && cached.data?.length > 0) {
+      console.log('✅ Serving from cache');
+      return res.json({ recipes: cached.data, fromCache: true });
+    }
+
+    console.log('🌐 Fetching from API...');
+    const { data } = await axios.get(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${category}`, { 
+      timeout: 15000 
+    });
+    const meals = data.meals || [];
+
+    const recipes = meals
+      .filter(meal => meal.idMeal)
+      .map(meal => ({
+        apiId: meal.idMeal,
+        title: meal.strMeal || 'Untitled Recipe',
+        image: meal.strMealThumb || '',
+        category
+      }));
+
+    await CategoryCache.findOneAndUpdate(
+      { category },
+      { $set: { data: recipes, createdAt: new Date() } },
+      { upsert: true, new: true }
+    );
+
+    res.json({ recipes, fromCache: false });
+  } catch (error) {
+    console.error('❌ Error fetching category recipes:', error);
+    res.status(500).json({ message: 'Failed to fetch recipes by category', error: error.message });
+  }
+});
+
+// Clear all caches and invalid recipes
 router.delete('/clear-all-cache', async (req, res) => {
   try {
     await CategoryCache.deleteMany({});
@@ -37,225 +163,118 @@ router.delete('/clear-all-cache', async (req, res) => {
   }
 });
 
-
-
-
-// ✅ GET /api/recipes - Fetch recent recipes from Recipe collection
-router.get('/', async (req, res) => {
-  try {
-    // Fixed: Query Recipe collection properly and select only recipe documents with actual data
-    const recipes = await Recipe.find({ 
-      apiId: { $exists: true },
-      title: { $exists: true, $ne: '' },
-      image: { $exists: true, $ne: '' }
-    })
-    .select('apiId title image instructions ingredients category')
-    .limit(20)
-    .lean();
-
-    console.log('Found recipes from Recipe collection:', recipes.length);
-    console.log('Sample recipe:', recipes[0]);
-
-    // If no proper recipes in database, fetch some from API
-   // If database has fewer than 100 recipes, fetch more from API
-if (recipes.length < 100) {
-  console.log(`Only ${recipes.length} recipes in DB, fetching more from API...`);
-
-  const response = await axios.get('https://www.themealdb.com/api/json/v1/1/search.php?s=');
-  const meals = response.data.meals || [];
-
-  const newRecipes = meals.map(meal => ({
-    apiId: meal.idMeal,
-    title: meal.strMeal,
-    image: meal.strMealThumb,
-    instructions: meal.strInstructions,
-    ingredients: getIngredients(meal),
-    category: meal.strCategory?.toLowerCase()
-  }));
-
-  // Insert only new recipes
-  await Recipe.insertMany(newRecipes, { ordered: false }).catch(err => {
-    console.log('Some recipes already exist:', err.message);
-  });
-
-  return res.json(newRecipes);
-}
-
-
-    res.json(recipes);
-  } catch (error) {
-    console.error('Error fetching recipes:', error);
-    res.status(500).json({ message: 'Failed to fetch recipes' });
-  }
-});
-
-// ✅ GET /api/recipes/category/:category
-router.get('/category/:category', async (req, res) => {
-  const category = req.params.category.toLowerCase();
-  const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
-  
-  try {
-    // Check cache first
-    const cached = await CategoryCache.findOne({ category });
-    
-    if (cached && cached.createdAt > oneHourAgo && cached.data && cached.data.length > 0) {
-      console.log('Serving from cache:', cached.data.length, 'recipes');
-      console.log('Sample cached recipe:', cached.data[0]);
-      
-      // Validate cached data structure - check for our transformed format
-      if (cached.data[0] && cached.data[0].title && cached.data[0].image && cached.data[0].apiId) {
-        return res.json({ recipes: cached.data, fromCache: true });
-      } else {
-        console.log('Cached data is invalid format, clearing cache');
-        console.log('Invalid cached recipe:', cached.data[0]);
-        // Delete invalid cache
-        await CategoryCache.deleteOne({ category });
-      }
-    }
-
-    // Fetch from external API
-    console.log('Fetching fresh data from API for category:', category);
-    const response = await axios.get(`https://www.themealdb.com/api/json/v1/1/filter.php?c=${category}`);
-    const meals = response.data.meals || [];
-
-    console.log('API returned:', meals.length, 'meals for', category);
-    console.log('Sample raw API meal:', meals[0]);
-
-    if (meals.length === 0) {
-      return res.json({ recipes: [], fromCache: false });
-    }
-
-    // CRITICAL: Transform API format to our frontend format
-    const recipes = meals.map(meal => {
-      const transformed = {
-        apiId: meal.idMeal,
-        title: meal.strMeal,
-        image: meal.strMealThumb,
-        category: category,
-      };
-      return transformed;
-    });
-
-    console.log('Transformed recipes count:', recipes.length);
-    console.log('Sample transformed recipe:', recipes[0]);
-
-    // Validate transformation worked
-    if (!recipes[0] || !recipes[0].title || !recipes[0].image) {
-      console.error('TRANSFORMATION FAILED!');
-      console.error('Input meal:', meals[0]);
-      console.error('Output recipe:', recipes[0]);
-      return res.status(500).json({ message: 'Data transformation failed' });
-    }
-
-    // Cache the transformed results
-    const cacheResult = await CategoryCache.findOneAndUpdate(
-      { category },
-      { 
-        $set: { 
-          data: recipes, 
-          createdAt: new Date() 
-        } 
-      },
-      { upsert: true, new: true }
-    );
-
-    console.log('Successfully cached', recipes.length, 'recipes for', category);
-    console.log('Verification - cached data sample:', cacheResult.data[0]);
-
-    // Return transformed data
-    res.json({ recipes, fromCache: false });
-  } catch (error) {
-    console.error('Error fetching category recipes:', error);
-    res.status(500).json({ message: 'Failed to fetch recipes by category' });
-  }
-});
-
-// ✅ GET /api/recipes/random - Add missing random endpoint (MUST be before /:id route)
-router.get('/random', async (req, res) => {
-  try {
-    const response = await axios.get('https://www.themealdb.com/api/json/v1/1/random.php');
-    const meal = response.data.meals?.[0];
-    
-    if (!meal) {
-      return res.status(404).json({ message: 'No random recipe found' });
-    }
-    
-    const recipe = {
-      apiId: meal.idMeal,
-      title: meal.strMeal,
-      image: meal.strMealThumb,
-      instructions: meal.strInstructions,
-      ingredients: getIngredients(meal),
-      category: meal.strCategory?.toLowerCase(),
-    };
-    
-    res.json({ recipe });
-  } catch (error) {
-    console.error('Error fetching random recipe:', error);
-    res.status(500).json({ message: 'Failed to fetch random recipe' });
-  }
-});
-
-// ✅ GET /api/recipes/:id
-router.get('/:id', async (req, res) => {
-  const { id } = req.params;
-  console.log('Fetching recipe by ID:', id);
-
-  try {
-    // 1. Try DB first
-    const cachedRecipe = await Recipe.findOne({ apiId: id }).lean();
-    if (cachedRecipe) {
-      console.log('Found recipe in DB:', cachedRecipe.title);
-      return res.json({ fromCache: true, recipe: cachedRecipe });
-    }
-
-    // 2. Fetch from TheMealDB if not found in DB
-    console.log('Fetching from TheMealDB API...');
-    const response = await axios.get(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`);
-    const meal = response.data.meals?.[0];
-    
-    if (!meal) {
-      console.log('Meal not found in external API for ID:', id);
-      return res.status(404).json({ message: 'Recipe not found' });
-    }
-
-    const ingredients = getIngredients(meal);
-
-    const newRecipe = new Recipe({
-      apiId: meal.idMeal,
-      title: meal.strMeal,
-      image: meal.strMealThumb,
-      instructions: meal.strInstructions,
-      ingredients,
-      category: meal.strCategory?.toLowerCase(),
-    });
-
-    console.log('Attempting to save new recipe:', newRecipe.title);
-
-    await newRecipe.save();
-
-    console.log('Saved new recipe:', newRecipe.title);
-
-    return res.json({ fromCache: false, recipe: newRecipe.toObject() });
-
-  } catch (error) {
-    console.error('Error fetching recipe:', error);
-    return res.status(500).json({ message: 'Failed to fetch recipe', error: error.message, error: error.message,   // <-- send error message to client
-    stack: error.stack   });
-  }
-});
-
-
-
-
-// ✅ DELETE /api/recipes/cache - Helper to clear all caches
+// Clear cache
 router.delete('/cache', async (req, res) => {
   try {
     await CategoryCache.deleteMany({});
     res.json({ message: 'All caches cleared' });
   } catch (error) {
     console.error('Error clearing caches:', error);
-    res.status(500).json({ message: 'Failed to clear caches' });
+    res.status(500).json({ message: 'Failed to clear caches', error: error.message });
+  }
+});
+
+// ==================== GENERAL ROUTES (AFTER SPECIFIC ROUTES) ====================
+
+// -------------------- Fetch Recent Recipes --------------------
+router.get('/', async (req, res) => {
+  console.log('📋 Root recipes route hit');
+  
+  try {
+    const recipes = await Recipe.find({
+      apiId: { $exists: true },
+      title: { $exists: true, $ne: '' },
+      image: { $exists: true, $ne: '' }
+    })
+    .select('apiId title image instructions ingredients category')
+    .limit(200)
+    .lean();
+
+    if (recipes.length > 0) {
+      console.log(`✅ Serving ${recipes.length} recipes from database`);
+      return res.json(recipes);
+    }
+
+    console.log('🌐 Database empty, fetching from API...');
+    const response = await axios.get('https://www.themealdb.com/api/json/v1/1/search.php?s=', { 
+      timeout: 15000 
+    });
+    const meals = response.data.meals || [];
+
+    if (!meals.length) return res.status(404).json({ message: 'No recipes found' });
+
+    const newRecipes = meals
+      .filter(meal => meal.idMeal)
+      .map(meal => ({
+        apiId: meal.idMeal,
+        title: meal.strMeal || 'Untitled Recipe',
+        image: meal.strMealThumb || '',
+        instructions: meal.strInstructions || '',
+        ingredients: getIngredients(meal),
+        category: meal.strCategory?.toLowerCase() || ''
+      }));
+
+    if (newRecipes.length > 0) {
+      try {
+        await Recipe.insertMany(newRecipes, { ordered: false });
+        console.log('✅ New recipes saved to database');
+      } catch (err) {
+        console.log('⚠️ Some recipes may already exist:', err.message);
+      }
+    }
+
+    res.json(newRecipes);
+  } catch (error) {
+    console.error('❌ Error fetching recipes:', error);
+    res.status(500).json({ message: 'Failed to fetch recipes', error: error.message });
+  }
+});
+
+// -------------------- Fetch Recipe by ID (MUST BE LAST) --------------------
+router.get('/:id', async (req, res) => {
+  const { id } = req.params;
+  console.log(`🔍 Recipe by ID route hit: ${id}`);
+
+  // Skip if this looks like a search query that got misrouted
+  if (id === 'search' || id.includes('=')) {
+    console.log('❌ Possible misrouted search request');
+    return res.status(400).json({ message: 'Invalid recipe ID format' });
+  }
+
+  try {
+    const cachedRecipe = await Recipe.findOne({ apiId: id }).lean();
+    if (cachedRecipe) {
+      console.log('✅ Serving recipe from cache');
+      return res.json({ fromCache: true, recipe: cachedRecipe });
+    }
+
+    console.log('🌐 Fetching recipe from API...');
+    const { data } = await axios.get(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`, { 
+      timeout: 15000 
+    });
+    const meal = data?.meals?.[0];
+    
+    if (!meal?.idMeal) {
+      console.log(`❌ Recipe not found: ${id}`);
+      return res.status(404).json({ message: 'Recipe not found' });
+    }
+
+    const newRecipe = new Recipe({
+      apiId: meal.idMeal,
+      title: meal.strMeal || 'Untitled Recipe',
+      image: meal.strMealThumb || '',
+      instructions: meal.strInstructions || '',
+      ingredients: getIngredients(meal),
+      category: meal.strCategory?.toLowerCase() || ''
+    });
+
+    await newRecipe.save();
+    console.log('✅ New recipe saved to database');
+    res.json({ fromCache: false, recipe: newRecipe.toObject() });
+
+  } catch (error) {
+    console.error('❌ Error fetching recipe by ID:', error);
+    res.status(500).json({ message: 'Failed to fetch recipe', error: error.message });
   }
 });
 
