@@ -1,3 +1,4 @@
+// src/components/Recipe.jsx
 import React, { useEffect, useState, useContext } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from '../api/axios';
@@ -16,13 +17,41 @@ export default function Recipe() {
 
   const getRecipeId = (r) => r.apiId || r.id || r._id;
 
-  // Add to Favorites
+  // --- Helpers ---
+  // Split a long instructions string into readable steps for <ol>
+  const formatInstructions = (text) => {
+    if (!text) return [];
+
+    // Normalize whitespace
+    const normalized = text
+      .replace(/\r\n/g, '\n')
+      .replace(/\r/g, '\n')
+      .replace(/\t/g, ' ')
+      .trim();
+
+    // 1) Try splitting by line breaks when present
+    let parts = normalized.split(/\n+/).map(s => s.trim()).filter(Boolean);
+
+    // 2) If it looks like one giant paragraph, split by sentence-ish boundaries.
+    // Use a conservative split on ". " or ".\n" while keeping abbreviations somewhat intact.
+    if (parts.length <= 2) {
+      parts = normalized
+        .split(/(?<=\.)\s+(?=[A-Z])|(?<=\.)\n+/) // split after a period followed by space/newline and a capital
+        .map(s => s.trim())
+        .filter(Boolean);
+    }
+
+    // 3) Clean up bullet/number prefixes that TheMealDB sometimes includes
+    parts = parts.map(step => step.replace(/^\s*[-•\d)+.]+\s*/, '').trim()).filter(Boolean);
+
+    return parts;
+  };
+
+  // --- Favorites ---
   const handleAddToFavorites = async () => {
     if (!recipe) return;
-
     const userId = user?._id || null;
-    // Always use apiId for consistency
-    const recipeId = recipe.apiId || recipe.id || recipe._id;
+    const recipeId = getRecipeId(recipe);
 
     if (favorites.some(fav => getRecipeId(fav) === recipeId)) {
       alert('Already in favorites');
@@ -37,14 +66,14 @@ export default function Recipe() {
           recipeTitle: recipe.title,
           recipeImage: recipe.image,
         });
+        // fetch latest favorites from server (safer than optimistic push)
+        const res = await axios.get(`/favorites/${userId}`);
+        setFavorites(res.data.favorites || []);
       } else {
-        // For guests, add to localStorage
         const updatedFavorites = [...favorites, recipe];
         setFavorites(updatedFavorites);
         localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
       }
-
-      setFavorites((prev) => [...prev, recipe]);
       alert('Added to favorites!');
     } catch (err) {
       console.error('Failed to add to favorites:', err);
@@ -52,27 +81,21 @@ export default function Recipe() {
     }
   };
 
-  // Remove from Favorites
   const handleRemoveFromFavorites = async () => {
     if (!recipe) return;
-
     const userId = user?._id || null;
     const recipeId = getRecipeId(recipe);
 
     try {
       if (userId) {
-        await axios.delete('/favorites/remove', {
-          data: { userId, recipeId },
-        });
+        await axios.delete('/favorites/remove', { data: { userId, recipeId } });
+        const res = await axios.get(`/favorites/${userId}`);
+        setFavorites(res.data.favorites || []);
       } else {
-        // For guests, update localStorage
-        const updatedFavorites = favorites.filter((fav) => getRecipeId(fav) !== recipeId);
+        const updatedFavorites = favorites.filter(fav => getRecipeId(fav) !== recipeId);
+        setFavorites(updatedFavorites);
         localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
       }
-
-      setFavorites((prev) =>
-        prev.filter((fav) => getRecipeId(fav) !== recipeId)
-      );
       alert('Removed from favorites!');
     } catch (err) {
       console.error('Failed to remove from favorites:', err);
@@ -80,7 +103,7 @@ export default function Recipe() {
     }
   };
 
-  // Add to Shopping List
+  // --- Shopping List ---
   const handleAddToShoppingList = async () => {
     if (!user?._id) {
       alert('You must be logged in to add to shopping list.');
@@ -94,7 +117,6 @@ export default function Recipe() {
           recipeName: recipe.title,
           ingredients: recipe.ingredients,
         });
-
         alert('Ingredients added to shopping list!');
       } catch (err) {
         console.error('Failed to save shopping list:', err);
@@ -103,34 +125,28 @@ export default function Recipe() {
     }
   };
 
-  // Load favorites and shopping list from localStorage for guests
+  // --- Local storage sync for guests ---
   useEffect(() => {
     if (!user) {
       const savedFavs = JSON.parse(localStorage.getItem('favorites')) || [];
       setFavorites(savedFavs);
     }
-
     const savedList = JSON.parse(localStorage.getItem('shoppingList')) || [];
     setShoppingList(savedList);
   }, [user]);
 
-  // Save favorites to localStorage only for guests
   useEffect(() => {
-    if (!user) {
-      localStorage.setItem('favorites', JSON.stringify(favorites));
-    }
+    if (!user) localStorage.setItem('favorites', JSON.stringify(favorites));
   }, [favorites, user]);
 
-  // Save shopping list to localStorage for everyone
   useEffect(() => {
     localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
   }, [shoppingList]);
 
-  // Fetch favorites for logged-in users
+  // --- Fetch favorites for logged-in users ---
   useEffect(() => {
     const fetchFavorites = async () => {
       if (!user?._id) return;
-
       try {
         const res = await axios.get(`/favorites/${user._id}`);
         setFavorites(res.data.favorites || []);
@@ -138,47 +154,35 @@ export default function Recipe() {
         console.error('Failed to load favorites:', err);
       }
     };
-
     fetchFavorites();
   }, [user]);
 
-  // Fetch recipe by ID - FIXED: Use axios instance instead of hardcoded URL
+  // --- Fetch recipe by ID ---
   useEffect(() => {
     const fetchRecipe = async () => {
       try {
         setLoading(true);
         setError('');
-        
-        // Use the axios instance from your api/axios file instead of hardcoded URL
         const res = await axios.get(`/recipes/${id}`);
-        
-        // Handle both response formats (with or without .recipe wrapper)
         const recipeData = res.data.recipe || res.data;
         setRecipe(recipeData);
       } catch (err) {
         console.error('API Error:', err);
-        if (err.response?.status === 404) {
-          setError('Recipe not found');
-        } else {
-          setError('Failed to load recipe');
-        }
+        if (err.response?.status === 404) setError('Recipe not found');
+        else setError('Failed to load recipe');
       } finally {
         setLoading(false);
       }
     };
-
-    if (id) {
-      fetchRecipe();
-    }
+    if (id) fetchRecipe();
   }, [id]);
 
   if (loading) return <p>Loading recipe...</p>;
   if (error) return <p style={{ color: 'red' }}>{error}</p>;
   if (!recipe) return <p>No recipe found.</p>;
 
-  const isFavorited = favorites.some(
-    (fav) => getRecipeId(fav) === getRecipeId(recipe)
-  );
+  const isFavorited = favorites.some(fav => getRecipeId(fav) === getRecipeId(recipe));
+  const steps = formatInstructions(recipe.instructions);
 
   return (
     <div style={{ padding: '20px' }}>
@@ -194,10 +198,7 @@ export default function Recipe() {
 
         <div className="recipe-actions">
           {isFavorited ? (
-            <button
-              className="favorite-btn remove"
-              onClick={handleRemoveFromFavorites}
-            >
+            <button className="favorite-btn remove" onClick={handleRemoveFromFavorites}>
               Remove from Favorites
             </button>
           ) : (
@@ -229,7 +230,15 @@ export default function Recipe() {
         </ul>
 
         <h2>Instructions</h2>
-        <p>{recipe.instructions || 'No instructions available.'}</p>
+        {steps.length > 0 ? (
+          <ol className="instructions-list">
+            {steps.map((step, idx) => (
+              <li key={idx}>{step}</li>
+            ))}
+          </ol>
+        ) : (
+          <p>No instructions available.</p>
+        )}
       </div>
     </div>
   );

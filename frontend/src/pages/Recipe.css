@@ -102,6 +102,18 @@ p {
   background-color: #3e8e41;
 }
 
+/* Instruction list styling */
+.instructions-list {
+  margin: 1rem 0;
+  padding-left: 1.5rem;
+}
+
+.instructions-list li {
+  margin-bottom: 0.5rem;
+  line-height: 1.5;
+}
+
+
 
 
 
