@@ -86,7 +86,7 @@ export default function Recipes() {
     fetchAbortRef.current = controller;
 
     try {
-      const data = await apiGet('/recipes', { signal: controller.signal });
+      const data = await apiGet('/recipes', { params: { limit: 10000 }, signal: controller.signal });
       const normalized = Array.isArray(data) ? data : (data.recipes || data);
       setAllRecipes(normalized || []);
       setRecipes(normalized || []);
@@ -319,13 +319,7 @@ export default function Recipes() {
       {isBusy && !searchLoading && <p style={{ color: '#666' }}>Loading recipes...</p>}
       {error && <p style={{ color: 'red', backgroundColor: '#ffeaa7', padding: '10px', borderRadius: '4px' }}>{error}</p>}
 
-      {/* Results count */}
-      {!isBusy && recipes.length > 0 && (
-        <p style={{ color: '#666', marginBottom: '15px' }}>
-          Showing {recipes.length} recipe{recipes.length !== 1 ? 's' : ''}
-        </p>
-      )}
-
+    
       {/* Recipes Grid */}
       <div className="recipe-grid">
         {!isBusy && recipes.length === 0 && (

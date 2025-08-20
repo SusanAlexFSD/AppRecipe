@@ -179,56 +179,100 @@ router.delete('/cache', async (req, res) => {
 // -------------------- Fetch Recent Recipes --------------------
 router.get('/', async (req, res) => {
   console.log('📋 Root recipes route hit');
-  
+
+  const MIN_TARGET = 273; // TheMealDB catalogue size target (adjust if you want)
+  const limit = Number(req.query.limit) || 10000;
+
   try {
+    // how many do we actually have?
+    const existingCount = await Recipe.countDocuments({
+      apiId: { $exists: true },
+      title: { $exists: true, $ne: '' },
+      image: { $exists: true, $ne: '' },
+    });
+
+    if (existingCount < MIN_TARGET) {
+      console.log(`🌱 Seeding DB (have ${existingCount}, want >= ${MIN_TARGET})...`);
+      await seedAllMealsFromFirstLetters(); // defined below
+    }
+
+    // now serve everything (up to limit)
     const recipes = await Recipe.find({
       apiId: { $exists: true },
       title: { $exists: true, $ne: '' },
-      image: { $exists: true, $ne: '' }
+      image: { $exists: true, $ne: '' },
     })
-    .select('apiId title image instructions ingredients category')
-    .limit(200)
-    .lean();
+      .select('apiId title image instructions ingredients category')
+      .limit(limit)
+      .lean();
 
-    if (recipes.length > 0) {
-      console.log(`✅ Serving ${recipes.length} recipes from database`);
-      return res.json(recipes);
-    }
-
-    console.log('🌐 Database empty, fetching from API...');
-    const response = await axios.get('https://www.themealdb.com/api/json/v1/1/search.php?s=', { 
-      timeout: 15000 
-    });
-    const meals = response.data.meals || [];
-
-    if (!meals.length) return res.status(404).json({ message: 'No recipes found' });
-
-    const newRecipes = meals
-      .filter(meal => meal.idMeal)
-      .map(meal => ({
-        apiId: meal.idMeal,
-        title: meal.strMeal || 'Untitled Recipe',
-        image: meal.strMealThumb || '',
-        instructions: meal.strInstructions || '',
-        ingredients: getIngredients(meal),
-        category: meal.strCategory?.toLowerCase() || ''
-      }));
-
-    if (newRecipes.length > 0) {
-      try {
-        await Recipe.insertMany(newRecipes, { ordered: false });
-        console.log('✅ New recipes saved to database');
-      } catch (err) {
-        console.log('⚠️ Some recipes may already exist:', err.message);
-      }
-    }
-
-    res.json(newRecipes);
+    console.log(`✅ Serving ${recipes.length} recipes from database`);
+    return res.json(recipes);
   } catch (error) {
     console.error('❌ Error fetching recipes:', error);
     res.status(500).json({ message: 'Failed to fetch recipes', error: error.message });
   }
 });
+
+
+
+async function seedAllMealsFromFirstLetters() {
+  const letters = 'abcdefghijklmnopqrstuvwxyz'.split('');
+  // small concurrency pool to be polite to the API
+  const CONCURRENCY = 4;
+  const axiosOpts = { timeout: 15000 };
+
+  const batches = [];
+  for (let i = 0; i < letters.length; i += CONCURRENCY) {
+    batches.push(letters.slice(i, i + CONCURRENCY));
+  }
+
+  for (const batch of batches) {
+    const requests = batch.map(l =>
+      axios.get(`https://www.themealdb.com/api/json/v1/1/search.php?f=${l}`, axiosOpts)
+        .then(r => r.data?.meals || [])
+        .catch(e => {
+          console.warn(`⚠️ Seed fetch failed for '${l}':`, e.message);
+          return [];
+        })
+    );
+
+    const results = await Promise.all(requests);
+    const meals = results.flat();
+
+    if (!meals.length) continue;
+
+    const docs = meals
+      .filter(m => m?.idMeal)
+      .map(m => ({
+        updateOne: {
+          filter: { apiId: m.idMeal },
+          update: {
+            $set: {
+              apiId: m.idMeal,
+              title: m.strMeal || 'Untitled Recipe',
+              image: m.strMealThumb || '',
+              instructions: m.strInstructions || '',
+              ingredients: getIngredients(m),
+              category: m.strCategory ? m.strCategory.toLowerCase() : '',
+            },
+          },
+          upsert: true,
+        },
+      }));
+
+    if (docs.length) {
+      try {
+        await Recipe.bulkWrite(docs, { ordered: false });
+        console.log(`➕ Seeded/updated ${docs.length} meals for batch [${batch.join(', ')}]`);
+      } catch (e) {
+        console.warn('⚠️ bulkWrite warnings:', e.message);
+      }
+    }
+  }
+}
+
+
 
 // -------------------- Fetch Recipe by ID (MUST BE LAST) --------------------
 // Update your /:id route in routes/recipes.js
