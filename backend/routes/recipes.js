@@ -231,6 +231,7 @@ router.get('/', async (req, res) => {
 });
 
 // -------------------- Fetch Recipe by ID (MUST BE LAST) --------------------
+// Update your /:id route in routes/recipes.js
 router.get('/:id', async (req, res) => {
   const { id } = req.params;
   console.log(`🔍 Recipe by ID route hit: ${id}`);
@@ -242,35 +243,52 @@ router.get('/:id', async (req, res) => {
   }
 
   try {
-    const cachedRecipe = await Recipe.findOne({ apiId: id }).lean();
+    let cachedRecipe;
+    
+    // First, try to find by apiId (for external API IDs like 52977)
+    cachedRecipe = await Recipe.findOne({ apiId: id }).lean();
+    
+    // If not found and ID looks like MongoDB ObjectId, try finding by _id
+    if (!cachedRecipe && id.match(/^[0-9a-fA-F]{24}$/)) {
+      console.log('🔍 Trying to find by MongoDB _id...');
+      cachedRecipe = await Recipe.findById(id).lean();
+    }
+
     if (cachedRecipe) {
       console.log('✅ Serving recipe from cache');
       return res.json({ fromCache: true, recipe: cachedRecipe });
     }
 
-    console.log('🌐 Fetching recipe from API...');
-    const { data } = await axios.get(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`, { 
-      timeout: 15000 
-    });
-    const meal = data?.meals?.[0];
-    
-    if (!meal?.idMeal) {
-      console.log(`❌ Recipe not found: ${id}`);
-      return res.status(404).json({ message: 'Recipe not found' });
+    // If not in database, try external API (only works with numeric apiIds)
+    if (!id.match(/^[0-9a-fA-F]{24}$/)) {
+      console.log('🌐 Fetching recipe from API...');
+      const { data } = await axios.get(`https://www.themealdb.com/api/json/v1/1/lookup.php?i=${id}`, { 
+        timeout: 15000 
+      });
+      const meal = data?.meals?.[0];
+      
+      if (!meal?.idMeal) {
+        console.log(`❌ Recipe not found in API: ${id}`);
+        return res.status(404).json({ message: 'Recipe not found' });
+      }
+
+      const newRecipe = new Recipe({
+        apiId: meal.idMeal,
+        title: meal.strMeal || 'Untitled Recipe',
+        image: meal.strMealThumb || '',
+        instructions: meal.strInstructions || '',
+        ingredients: getIngredients(meal),
+        category: meal.strCategory?.toLowerCase() || ''
+      });
+
+      await newRecipe.save();
+      console.log('✅ New recipe saved to database');
+      return res.json({ fromCache: false, recipe: newRecipe.toObject() });
     }
 
-    const newRecipe = new Recipe({
-      apiId: meal.idMeal,
-      title: meal.strMeal || 'Untitled Recipe',
-      image: meal.strMealThumb || '',
-      instructions: meal.strInstructions || '',
-      ingredients: getIngredients(meal),
-      category: meal.strCategory?.toLowerCase() || ''
-    });
-
-    await newRecipe.save();
-    console.log('✅ New recipe saved to database');
-    res.json({ fromCache: false, recipe: newRecipe.toObject() });
+    // If we get here, the ID is a MongoDB ObjectId but not found in database
+    console.log(`❌ Recipe not found: ${id}`);
+    return res.status(404).json({ message: 'Recipe not found' });
 
   } catch (error) {
     console.error('❌ Error fetching recipe by ID:', error);

@@ -14,14 +14,15 @@ export default function Recipe() {
   const [favorites, setFavorites] = useState([]);
   const [shoppingList, setShoppingList] = useState([]);
 
-  const getRecipeId = (r) => r.id || r._id || r.apiId;
+  const getRecipeId = (r) => r.apiId || r.id || r._id;
 
   // Add to Favorites
   const handleAddToFavorites = async () => {
     if (!recipe) return;
 
     const userId = user?._id || null;
-    const recipeId = getRecipeId(recipe);
+    // Always use apiId for consistency
+    const recipeId = recipe.apiId || recipe.id || recipe._id;
 
     if (favorites.some(fav => getRecipeId(fav) === recipeId)) {
       alert('Already in favorites');
@@ -36,6 +37,11 @@ export default function Recipe() {
           recipeTitle: recipe.title,
           recipeImage: recipe.image,
         });
+      } else {
+        // For guests, add to localStorage
+        const updatedFavorites = [...favorites, recipe];
+        setFavorites(updatedFavorites);
+        localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
       }
 
       setFavorites((prev) => [...prev, recipe]);
@@ -58,6 +64,10 @@ export default function Recipe() {
         await axios.delete('/favorites/remove', {
           data: { userId, recipeId },
         });
+      } else {
+        // For guests, update localStorage
+        const updatedFavorites = favorites.filter((fav) => getRecipeId(fav) !== recipeId);
+        localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
       }
 
       setFavorites((prev) =>
@@ -132,21 +142,34 @@ export default function Recipe() {
     fetchFavorites();
   }, [user]);
 
-  // Fetch recipe by ID
+  // Fetch recipe by ID - FIXED: Use axios instance instead of hardcoded URL
   useEffect(() => {
     const fetchRecipe = async () => {
       try {
-        const res = await axios.get(`http://localhost:5000/api/recipes/${id}`);
-        setRecipe(res.data.recipe);
+        setLoading(true);
+        setError('');
+        
+        // Use the axios instance from your api/axios file instead of hardcoded URL
+        const res = await axios.get(`/recipes/${id}`);
+        
+        // Handle both response formats (with or without .recipe wrapper)
+        const recipeData = res.data.recipe || res.data;
+        setRecipe(recipeData);
       } catch (err) {
         console.error('API Error:', err);
-        setError('Failed to load recipe');
+        if (err.response?.status === 404) {
+          setError('Recipe not found');
+        } else {
+          setError('Failed to load recipe');
+        }
       } finally {
         setLoading(false);
       }
     };
 
-    fetchRecipe();
+    if (id) {
+      fetchRecipe();
+    }
   }, [id]);
 
   if (loading) return <p>Loading recipe...</p>;
@@ -175,24 +198,24 @@ export default function Recipe() {
               className="favorite-btn remove"
               onClick={handleRemoveFromFavorites}
             >
-              ❌ Remove from Favorites
+              Remove from Favorites
             </button>
           ) : (
             <button className="favorite-btn" onClick={handleAddToFavorites}>
-              ❤️ Add to Favorites
+              Add to Favorites
             </button>
           )}
           <button className="shopping-btn" onClick={handleAddToShoppingList}>
-            🛒 Add to Shopping List
+            Add to Shopping List
           </button>
         </div>
 
         <div className="linked-buttons" style={{ marginTop: '1rem' }}>
           <Link to="/favorites" className="link-btn">
-            ❤️ View Favorites
+            View Favorites
           </Link>
           <Link to="/shoppingList" className="link-btn" style={{ marginLeft: '1rem' }}>
-            🛒 View Shopping List
+            View Shopping List
           </Link>
         </div>
 
