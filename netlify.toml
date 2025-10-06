@@ -1,6 +1,4 @@
 [build]
-  publish = "frontend/dist"      # your React build folder
-  functions = "netlify/functions"  # where functions live
-
-[dev]
-  functions = "netlify/functions"
+  base = "frontend"          # <- current working dir for build
+  publish = "dist"           # <- relative to base
+  functions = "netlify/functions"  # <- relative to base
