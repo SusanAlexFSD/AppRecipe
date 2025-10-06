@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon server.js",
-    "clean:recipes": "node scripts/cleanInvalidRecipes.js"
+    "clean:recipes": "node scripts/cleanInvalidRecipes.js",
+    "build": "npx vite build"
   },
   "keywords": [],
   "author": "",
