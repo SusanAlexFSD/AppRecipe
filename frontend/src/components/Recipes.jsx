@@ -1,5 +1,6 @@
 // src/components/Recipes.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import * as api from '../api/recipes';
 import './Recipes.css';
@@ -10,10 +11,9 @@ const categories = [
 ];
 
 export default function Recipes() {
-  // Data state
-  const [allRecipes, setAllRecipes] = useState([]);
-  const [recipes, setRecipes] = useState([]);
-
+  // data
+  const [allRecipes, setAllRecipes] = useState([]); // accumulated dataset
+  const [recipes, setRecipes] = useState([]);       // what we display (category/search/all)
   // UI state
   const [loading, setLoading] = useState(false);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -21,91 +21,208 @@ export default function Recipes() {
   const [category, setCategory] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
 
-  // Refs for debouncing/cancelling
+  // refs for debouncing/cancelling
+  const searchAbortRef = useRef(null);
   const searchDebounceRef = useRef(null);
+  const fetchAbortRef = useRef(null);
 
-  // Fetch all recipes on mount
+  // Get axiosInstance from AuthContext
+  const auth = useAuth();
+  const axiosInstance = auth && (auth.axiosInstance || auth.axios) ? (auth.axiosInstance || auth.axios) : null;
+
+  // Helper to perform GET requests using axiosInstance if available, otherwise fetch.
+  async function apiGet(path, { params = {}, signal } = {}) {
+    if (axiosInstance) {
+      const config = {};
+      if (signal) config.signal = signal;
+      if (params && Object.keys(params).length) config.params = params;
+      const res = await axiosInstance.get(path, config);
+      return res.data;
+    }
+
+    // Fallback to fetch
+    const url = new URL((path.startsWith('/') ? path : `/${path}`), window.location.origin);
+    if (!url.pathname.startsWith('/api')) {
+      url.pathname = `/api${url.pathname}`;
+    }
+    Object.keys(params || {}).forEach(key => url.searchParams.append(key, params[key]));
+    const res = await fetch(url.toString(), { method: 'GET', signal });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`Request failed ${res.status} ${res.statusText} ${text}`);
+    }
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType.includes('application/json')) {
+      return res.json();
+    }
+    return res.text();
+  }
+
+  // On mount, fetch initial dataset
   useEffect(() => {
     fetchAllRecipes();
+
     return () => {
+      // cleanup any in-flight requests
+      if (searchAbortRef.current) {
+        try { searchAbortRef.current.abort(); } catch {}
+      }
+      if (fetchAbortRef.current) {
+        try { fetchAbortRef.current.abort(); } catch {}
+      }
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // run once
 
+  // Fetch initial recipes (server endpoint: GET /api/recipes)
   const fetchAllRecipes = async () => {
     setLoading(true);
     setError('');
+    // abort any previous fetch
+    if (fetchAbortRef.current) {
+      try { fetchAbortRef.current.abort(); } catch {}
+    }
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+
     try {
-      const data = await api.getRecipes();
-      setAllRecipes(data || []);
-      setRecipes(data || []);
+      const data = await apiGet('/recipes', { params: { limit: 10000 }, signal: controller.signal });
+      const normalized = Array.isArray(data) ? data : (data.recipes || data);
+      setAllRecipes(normalized || []);
+      setRecipes(normalized || []);
       setCategory('');
     } catch (err) {
-      console.error(err);
-      setError('Failed to load recipes.');
+      if (err.name === 'AbortError' || err.name === 'CanceledError') {
+        // ignore abort - this is expected behavior
+        console.log('fetchAllRecipes request was cancelled');
+      } else {
+        console.error('fetchAllRecipes error', err);
+        setError('Failed to load all recipes.');
+      }
     } finally {
       setLoading(false);
+      fetchAbortRef.current = null;
     }
   };
 
-  // Fetch recipes by category
-  const fetchRecipesByCategory = async (cat = '') => {
-    setSearchTerm('');
+  // Fetch recipes for a category and merge them into allRecipes
+  const fetchRecipes = async (cat = '') => {
+    setSearchTerm(''); // Clear search when selecting category
     if (!cat) {
       setRecipes(allRecipes);
       setCategory('');
       return;
     }
+
     setLoading(true);
     setError('');
+    // abort any previous fetch
+    if (fetchAbortRef.current) {
+      try { fetchAbortRef.current.abort(); } catch {}
+    }
+    const controller = new AbortController();
+    fetchAbortRef.current = controller;
+
     try {
-      const data = await api.getRecipes(); // For simplicity, serverless function can filter by category if implemented
-      const filtered = data.filter(r =>
-        (r.category || r.strCategory || '').toLowerCase() === cat.toLowerCase()
-      );
-      setRecipes(filtered);
+      const data = await apiGet(`/recipes/category/${encodeURIComponent(cat.toLowerCase())}`, { signal: controller.signal });
+      const categoryRecipes = Array.isArray(data) ? data : (data.recipes || data);
+      setRecipes(categoryRecipes || []);
       setCategory(cat);
+
+      // Merge into allRecipes by unique key (apiId / idMeal / _id)
+      setAllRecipes(prev => {
+        const map = new Map(prev.map(r => [r.apiId || r.idMeal || r._id, r]));
+        for (const r of (categoryRecipes || [])) {
+          const key = r.apiId || r.idMeal || r._id;
+          if (key) map.set(key, r);
+        }
+        return Array.from(map.values());
+      });
     } catch (err) {
-      console.error(err);
-      setError('Failed to load category recipes.');
+      if (err.name === 'AbortError' || err.name === 'CanceledError') {
+        // ignore abort
+        console.log('fetchRecipes request was cancelled');
+      } else {
+        console.error('fetchRecipes error', err);
+        setError('Failed to load category recipes.');
+      }
     } finally {
       setLoading(false);
+      fetchAbortRef.current = null;
     }
   };
 
-  // Search recipes
+  // Debounced server-side search effect
   useEffect(() => {
-    const q = searchTerm.trim();
+    const q = (searchTerm || '').trim();
+
+    // empty query -> show category or all
     if (q === '') {
-      setRecipes(category ? recipes : allRecipes);
+      // cancel in-flight search
+      if (searchAbortRef.current) {
+        try { searchAbortRef.current.abort(); } catch {}
+        searchAbortRef.current = null;
+      }
+      if (searchDebounceRef.current) {
+        clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
       setSearchLoading(false);
       setError('');
+      // If a category is selected, keep its recipes shown; otherwise show all
+      setRecipes(prev => (category ? prev : allRecipes));
       return;
     }
 
+    // debounce
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+
     searchDebounceRef.current = setTimeout(async () => {
+      // abort previous search
+      if (searchAbortRef.current) {
+        try { searchAbortRef.current.abort(); } catch {}
+      }
+      const controller = new AbortController();
+      searchAbortRef.current = controller;
+
       setSearchLoading(true);
       setError('');
       try {
-        const data = await api.getRecipes(); // Replace with search serverless function if needed
-        const filtered = data.filter(r =>
-          (r.title || r.strMeal || '').toLowerCase().includes(q.toLowerCase())
-        );
-        setRecipes(filtered);
+        const data = await apiGet('/recipes/search', { params: { q }, signal: controller.signal });
+        const normalized = Array.isArray(data) ? data : (data.recipes || data);
+        setRecipes(normalized || []);
+
+        // Merge search results into allRecipes
+        setAllRecipes(prev => {
+          const map = new Map(prev.map(r => [r.apiId || r.idMeal || r._id, r]));
+          for (const r of (normalized || [])) {
+            const key = r.apiId || r.idMeal || r._id;
+            if (key) map.set(key, r);
+          }
+          return Array.from(map.values());
+        });
       } catch (err) {
-        console.error(err);
-        setError('Search failed.');
+        if (err.name === 'AbortError' || err.name === 'CanceledError') {
+          // ignore user-aborted request
+          console.log('Search request was cancelled');
+        } else {
+          console.error('Search error', err);
+          setError('Search failed. Please try again.');
+        }
       } finally {
         setSearchLoading(false);
+        searchAbortRef.current = null;
       }
-    }, 500);
+    }, 500); // Increased debounce to 500ms to reduce API calls
 
     return () => {
       if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, category, allRecipes]);
 
+  // UI helpers
   const displayCategory = searchTerm ? 'Search Results' : category;
   const isBusy = loading || searchLoading;
 
@@ -118,7 +235,7 @@ export default function Recipes() {
       {/* Navigation Buttons */}
       <div style={{ marginBottom: '20px' }}>
         <button
-          onClick={() => fetchRecipesByCategory('')}
+          onClick={() => fetchRecipes('')}
           style={{
             marginRight: '10px',
             padding: '5px 10px',
@@ -129,7 +246,7 @@ export default function Recipes() {
           All Recipes
         </button>
 
-        <Link to="/favorites">
+        <Link to="/favorites" style={{ textDecoration: 'none' }}>
           <button
             style={{
               marginRight: '10px',
@@ -145,7 +262,7 @@ export default function Recipes() {
           </button>
         </Link>
 
-        <Link to="/shoppingList">
+        <Link to="/shoppingList" style={{ textDecoration: 'none' }}>
           <button
             style={{
               marginRight: '10px',
@@ -165,7 +282,7 @@ export default function Recipes() {
       {/* Category Buttons */}
       <div style={{ marginBottom: '20px' }}>
         <button
-          onClick={() => fetchRecipesByCategory('')}
+          onClick={() => fetchRecipes('')}
           disabled={!category && !searchTerm}
           style={{ marginRight: '5px', padding: '5px 10px' }}
         >
@@ -174,7 +291,7 @@ export default function Recipes() {
         {categories.map(cat => (
           <button
             key={cat}
-            onClick={() => fetchRecipesByCategory(cat)}
+            onClick={() => fetchRecipes(cat)}
             style={{
               marginRight: '5px',
               padding: '5px 10px',
@@ -193,7 +310,7 @@ export default function Recipes() {
           type="text"
           placeholder="Search recipes by name..."
           value={searchTerm}
-          onChange={e => setSearchTerm(e.target.value)}
+          onChange={(e) => setSearchTerm(e.target.value)}
           style={{ padding: '8px 12px', width: '100%', maxWidth: '400px', borderRadius: '4px', border: '1px solid #ccc' }}
         />
         {searchLoading && <span style={{ marginLeft: '10px', color: '#666' }}>Searching...</span>}
@@ -203,6 +320,7 @@ export default function Recipes() {
       {isBusy && !searchLoading && <p style={{ color: '#666' }}>Loading recipes...</p>}
       {error && <p style={{ color: 'red', backgroundColor: '#ffeaa7', padding: '10px', borderRadius: '4px' }}>{error}</p>}
 
+    
       {/* Recipes Grid */}
       <div className="recipe-grid">
         {!isBusy && recipes.length === 0 && (
@@ -210,7 +328,7 @@ export default function Recipes() {
             {searchTerm ? `No recipes found for "${searchTerm}"` : 'No recipes found.'}
           </p>
         )}
-
+        
         {recipes.map(recipe => {
           const id = recipe.apiId || recipe.idMeal || recipe._id;
           const title = recipe.title || recipe.strMeal || 'Untitled';

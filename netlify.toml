@@ -1,4 +1,5 @@
 [build]
-  base = "frontend"          # <- current working dir for build
-  publish = "dist"           # <- relative to base
-  functions = "netlify/functions"  # <- relative to base
+  base = "frontend"       # directory containing package.json
+  publish = "dist"        # relative to base
+  command = "npm run build"
+  functions = "netlify/functions"
