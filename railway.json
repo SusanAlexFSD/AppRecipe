@@ -1,0 +1,7 @@
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "npx vite build",
+    "watchPatterns": ["frontend/**", "backend/**", "package.json"]
+  }
+}
