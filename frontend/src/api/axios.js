@@ -4,4 +4,4 @@ const instance = axios.create({
   baseURL: 'https://apprecipe.onrender.com/api',
 });
 
-export default instance;
+export default axiosInstance;
