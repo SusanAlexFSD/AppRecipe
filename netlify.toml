@@ -1,5 +1,0 @@
-[build]
-  base = "frontend"       # directory containing package.json
-  publish = "dist"        # relative to base
-  command = "npm run build"
-  functions = "netlify/functions"

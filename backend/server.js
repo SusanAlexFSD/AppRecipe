@@ -58,16 +58,26 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-// 🌍 Port and DB connection
+// 🌍 Port and environment
 const PORT = process.env.PORT || 5000;
+const ENV = process.env.NODE_ENV || 'development';
 
 console.log('🔄 Connecting to MongoDB...');
+
 mongoose.connect(process.env.MONGO_URI)
   .then(() => {
     console.log('✅ MongoDB connected successfully');
+
     app.listen(PORT, () => {
-      console.log(`✅ Server running on port ${PORT}`);
-      console.log(`🔗 API available at http://localhost:${PORT}`);
+      console.log(`✅ Server running in ${ENV} mode`);
+      console.log(`✅ Listening on port ${PORT}`);
+
+      if (ENV === 'development') {
+        console.log(`🔗 API available at http://localhost:${PORT}`);
+      } else {
+        console.log('🔗 API available via deployed Render URL');
+      }
+
       console.log('🚀 Ready to receive requests!');
     });
   })
@@ -76,7 +86,6 @@ mongoose.connect(process.env.MONGO_URI)
     process.exit(1);
   });
 
-  
 // ⚠️ Global error listeners
 process.on('unhandledRejection', (err) => {
   console.error('❌ Unhandled Promise Rejection:', err);

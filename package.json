@@ -3,16 +3,18 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
+  "private": true,
   "scripts": {
-    "dev": "vite",
-    "build": "npm vite build",
-    "preview": "vite preview"
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "build": "npm run build --prefix frontend",
+    "start": "npm run start --prefix backend"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "devDependencies": {
     "@vitejs/plugin-react": "^5.0.4",
+    "concurrently": "^8.2.2",
     "vite": "^7.1.7"
   },
   "dependencies": {
