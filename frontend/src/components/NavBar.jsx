@@ -16,7 +16,6 @@ export default function NavBar({
 
   return (
     <nav className="navbar">
-      {/* LOGO */}
       <Link to="/" className="nav-logo-card">
         <div className="nav-logo-icon-wrap">
           <span className="nav-logo-icon">🔎</span>
@@ -24,7 +23,6 @@ export default function NavBar({
         <span className="nav-logo-text">DishLab</span>
       </Link>
 
-      {/* SEARCH BAR */}
       <div className="nav-search">
         <span className="nav-search-icon">⌕</span>
         <input
@@ -44,7 +42,6 @@ export default function NavBar({
         </button>
       </div>
 
-      {/* ACTION BUTTONS */}
       <div className="nav-actions">
         {user ? (
           <>
@@ -72,9 +69,15 @@ export default function NavBar({
           </>
         ) : (
           <div className="nav-auth-links">
-            <Link to="/login" className="nav-text-link">Login</Link>
-            <Link to="/register" className="nav-text-link">Register</Link>
-            <Link to="/guest" className="nav-guest-btn">Guest</Link>
+            <Link to="/login" className="nav-text-link">
+              Login
+            </Link>
+            <Link to="/register" className="nav-text-link">
+              Register
+            </Link>
+            <Link to="/guest" className="nav-guest-btn">
+              Guest
+            </Link>
           </div>
         )}
       </div>
