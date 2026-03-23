@@ -1,265 +1,260 @@
-// src/components/Recipes.jsx
-import React, { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
-import axios from '../api/axios'; // your configured axios instance
-import './Recipes.css';
-
-const categories = [
-  'Beef', 'Breakfast', 'Chicken', 'Dessert',
-  'Lamb', 'Pasta', 'Pork', 'Seafood', 'Vegan', 'Vegetarian'
-];
+import React, { useState, useEffect, useMemo, useContext } from "react";
+import axios from "../api/axios";
+import RecipeCard from "./RecipeCard";
+import RecipesSidebar from "./RecipesSidebar";
+import { AuthContext } from "../context/AuthContext";
+import "./Recipes.css";
 
 export default function Recipes() {
-  // Data state
+  const { user } = useContext(AuthContext);
+
   const [allRecipes, setAllRecipes] = useState([]);
-  const [recipes, setRecipes] = useState([]);
-
-  // UI state
+  const [favorites, setFavorites] = useState([]);
+  const [shoppingList, setShoppingList] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [category, setCategory] = useState('');
-  const [searchTerm, setSearchTerm] = useState('');
+  const [error, setError] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [sortBy, setSortBy] = useState("newest");
+  const [initialLoad, setInitialLoad] = useState(true);
 
-  // Refs for debounce/abort
-  const fetchAbortRef = useRef(null);
-  const searchAbortRef = useRef(null);
-  const searchDebounceRef = useRef(null);
+  const normalizeValue = (value) => String(value || "").trim().toLowerCase();
 
-  // === Helper: API GET request ===
-  const apiGet = async (path, { params = {}, signal } = {}) => {
+  // -----------------------------
+  // Fetch recipes (featured or all)
+  // -----------------------------
+  const fetchRecipes = async (limit = 20) => {
+    setLoading(true);
+    setError("");
+
     try {
-      const config = { params, signal };
-      const res = await axios.get(path, config);
-      return res.data;
+      const res = await axios.get("/recipes", { params: { limit } });
+      const data = Array.isArray(res.data) ? res.data : res.data.recipes || [];
+
+      const cleaned = data.map((recipe, index) => ({
+        ...recipe,
+        category: normalizeValue(recipe.category),
+        originalIndex: index,
+      }));
+
+      setAllRecipes(cleaned);
     } catch (err) {
-      if (err.response) {
-        throw new Error(`Request failed: ${err.response.status} ${err.response.statusText}`);
-      } else if (err.request) {
-        throw new Error('No response received from server');
-      } else {
-        throw new Error(`Request error: ${err.message}`);
-      }
+      console.error(err);
+      setError("Failed to load recipes.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // === Fetch all recipes on mount ===
+  // -----------------------------
+  // Initial load (featured)
+  // -----------------------------
   useEffect(() => {
-    fetchAllRecipes();
-
-    return () => {
-      if (fetchAbortRef.current) fetchAbortRef.current.abort();
-      if (searchAbortRef.current) searchAbortRef.current.abort();
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    };
+    fetchRecipes(20);
   }, []);
 
-  const fetchAllRecipes = async () => {
-    setLoading(true);
-    setError('');
-    if (fetchAbortRef.current) fetchAbortRef.current.abort();
-    const controller = new AbortController();
-    fetchAbortRef.current = controller;
-
-    try {
-      const data = await apiGet('/recipes', { params: { limit: 10000 }, signal: controller.signal });
-      const normalized = Array.isArray(data) ? data : data.recipes || [];
-      setAllRecipes(normalized);
-      setRecipes(normalized);
-      setCategory('');
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error(err);
-        setError('Failed to load recipes.');
-      }
-    } finally {
-      setLoading(false);
-      fetchAbortRef.current = null;
-    }
-  };
-
-  // === Fetch recipes by category ===
-  const fetchRecipesByCategory = async (cat = '') => {
-    setSearchTerm('');
-    if (!cat) {
-      setRecipes(allRecipes);
-      setCategory('');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-    if (fetchAbortRef.current) fetchAbortRef.current.abort();
-    const controller = new AbortController();
-    fetchAbortRef.current = controller;
-
-    try {
-      const data = await apiGet(`/recipes/category/${encodeURIComponent(cat.toLowerCase())}`, { signal: controller.signal });
-      const categoryRecipes = Array.isArray(data) ? data : data.recipes || [];
-      setRecipes(categoryRecipes);
-      setCategory(cat);
-
-      // Merge into allRecipes
-      setAllRecipes(prev => {
-        const map = new Map(prev.map(r => [r.apiId || r.idMeal || r._id, r]));
-        categoryRecipes.forEach(r => {
-          const key = r.apiId || r.idMeal || r._id;
-          if (key) map.set(key, r);
-        });
-        return Array.from(map.values());
-      });
-    } catch (err) {
-      if (err.name !== 'AbortError') {
-        console.error(err);
-        setError('Failed to load category recipes.');
-      }
-    } finally {
-      setLoading(false);
-      fetchAbortRef.current = null;
-    }
-  };
-
-  // === Debounced search ===
+  // -----------------------------
+  // Load favorites
+  // -----------------------------
   useEffect(() => {
-    const q = searchTerm.trim();
-    if (!q) {
-      if (searchAbortRef.current) searchAbortRef.current.abort();
-      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-      setSearchLoading(false);
-      setError('');
-      setRecipes(category ? recipes : allRecipes);
-      return;
-    }
-
-    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
-    searchDebounceRef.current = setTimeout(async () => {
-      if (searchAbortRef.current) searchAbortRef.current.abort();
-      const controller = new AbortController();
-      searchAbortRef.current = controller;
-
-      setSearchLoading(true);
-      setError('');
-
-      try {
-        const data = await apiGet('/recipes/search', { params: { q }, signal: controller.signal });
-        const normalized = Array.isArray(data) ? data : data.recipes || [];
-        setRecipes(normalized);
-
-        setAllRecipes(prev => {
-          const map = new Map(prev.map(r => [r.apiId || r.idMeal || r._id, r]));
-          normalized.forEach(r => {
-            const key = r.apiId || r.idMeal || r._id;
-            if (key) map.set(key, r);
-          });
-          return Array.from(map.values());
-        });
-      } catch (err) {
-        if (err.name !== 'AbortError') {
-          console.error(err);
-          setError('Search failed. Please try again.');
+    const loadFavorites = async () => {
+      if (user?._id) {
+        try {
+          const res = await axios.get(`/favorites/${user._id}`);
+          setFavorites(res.data.favorites || []);
+        } catch (err) {
+          console.error("Failed to load favorites:", err);
         }
-      } finally {
-        setSearchLoading(false);
-        searchAbortRef.current = null;
+      } else {
+        const saved = JSON.parse(localStorage.getItem("favorites")) || [];
+        setFavorites(saved);
       }
-    }, 500);
+    };
 
-    return () => clearTimeout(searchDebounceRef.current);
-  }, [searchTerm, category, allRecipes]);
+    loadFavorites();
+  }, [user]);
 
-  // === UI helpers ===
-  const displayCategory = searchTerm ? 'Search Results' : category;
-  const isBusy = loading || searchLoading;
+  // -----------------------------
+  // Load shopping list
+  // -----------------------------
+  useEffect(() => {
+    const loadShoppingList = async () => {
+      if (user?._id) {
+        try {
+          const res = await axios.get(`/shoppingList/${user._id}`);
+          setShoppingList(res.data.items || []);
+        } catch (err) {
+          console.error("Failed to load shopping list:", err);
+        }
+      } else {
+        const saved = JSON.parse(localStorage.getItem("shoppingList")) || [];
+        setShoppingList(saved);
+      }
+    };
 
+    loadShoppingList();
+  }, [user]);
+
+  // -----------------------------
+  // Toggle category filter
+  // -----------------------------
+  const toggleCategory = (value) => {
+    const normalized = normalizeValue(value);
+
+    setSelectedCategories((prev) =>
+      prev.includes(normalized)
+        ? prev.filter((c) => c !== normalized)
+        : [...prev, normalized]
+    );
+
+    setInitialLoad(false);
+  };
+
+  const clearFilters = () => {
+    setSelectedCategories([]);
+    setInitialLoad(true);
+    fetchRecipes(20);
+  };
+
+  // -----------------------------
+  // Categories list
+  // -----------------------------
+  const categories = useMemo(() => {
+    const unique = [
+      ...new Set(allRecipes.map((r) => normalizeValue(r.category)).filter(Boolean)),
+    ];
+    return unique.sort((a, b) => a.localeCompare(b));
+  }, [allRecipes]);
+
+  // -----------------------------
+  // Apply category filtering (CLIENT SIDE)
+  // -----------------------------
+  const filteredRecipes = useMemo(() => {
+    if (selectedCategories.length === 0) return allRecipes;
+
+    return allRecipes.filter((recipe) =>
+      selectedCategories.includes(recipe.category)
+    );
+  }, [allRecipes, selectedCategories]);
+
+  // -----------------------------
+  // Sorting
+  // -----------------------------
+  const sortedRecipes = useMemo(() => {
+    const list = [...filteredRecipes];
+
+    switch (sortBy) {
+      case "popular":
+        return list.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
+
+      case "rating":
+        return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+
+      case "quickest":
+        return list.sort(
+          (a, b) =>
+            (a.readyInMinutes ?? 9999) - (b.readyInMinutes ?? 9999)
+        );
+
+      case "az":
+        return list.sort((a, b) =>
+          (a.title || "").localeCompare(b.title || "")
+        );
+
+      case "za":
+        return list.sort((a, b) =>
+          (b.title || "").localeCompare(a.title || "")
+        );
+
+      case "category":
+        return list.sort((a, b) =>
+          normalizeValue(a.category).localeCompare(normalizeValue(b.category))
+        );
+
+      default:
+        return list.sort((a, b) => b.originalIndex - a.originalIndex);
+    }
+  }, [filteredRecipes, sortBy]);
+
+  // -----------------------------
+  // Render
+  // -----------------------------
   return (
-    <div>
-      <h1>Recipes {displayCategory ? `- ${displayCategory}` : ''}</h1>
-
-      {/* Navigation */}
-      <div style={{ marginBottom: '20px' }}>
-        <button
-          onClick={() => fetchRecipesByCategory('')}
-          style={{
-            marginRight: '10px',
-            padding: '5px 10px',
-            backgroundColor: !category && !searchTerm ? '#007bff' : '#f8f9fa',
-            color: !category && !searchTerm ? 'white' : 'black'
-          }}
-        >
-          All Recipes
-        </button>
-
-        <Link to="/favorites"><button className="nav-btn favorite">Favorites</button></Link>
-        <Link to="/shoppingList"><button className="nav-btn shopping">Shopping List</button></Link>
-      </div>
-
-      {/* Categories */}
-      <div style={{ marginBottom: '20px' }}>
-        <button onClick={() => fetchRecipesByCategory('')} disabled={!category && !searchTerm}>All</button>
-        {categories.map(cat => (
+    <>
+      {/* HERO BANNER */}
+      <div className="recipes-hero">
+        <div className="recipes-hero-content">
+          <h1>Find Delicious Recipes</h1>
+          <p>Discover quick, easy, and delicious recipes suited to your taste.</p>
           <button
-            key={cat}
-            onClick={() => fetchRecipesByCategory(cat)}
-            style={{
-              marginRight: '5px',
-              padding: '5px 10px',
-              backgroundColor: !searchTerm && category === cat ? '#007bff' : '#f8f9fa',
-              color: !searchTerm && category === cat ? 'white' : 'black'
+            className="browse-btn"
+            onClick={() => {
+              setInitialLoad(false);
+              fetchRecipes(200);
             }}
           >
-            {cat}
+            Browse All Recipes →
           </button>
-        ))}
+        </div>
       </div>
 
-      {/* Search */}
-      <div style={{ marginBottom: '20px' }}>
-        <input
-          type="text"
-          placeholder="Search recipes by name..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          style={{ padding: '8px 12px', width: '100%', maxWidth: '400px', borderRadius: '4px', border: '1px solid #ccc' }}
+      {/* MAIN LAYOUT */}
+      <div className="recipes-layout">
+        <RecipesSidebar
+          categories={categories}
+          selectedCategories={selectedCategories}
+          onToggleCategory={toggleCategory}
+          onClearFilters={clearFilters}
         />
-        {searchLoading && <span style={{ marginLeft: '10px', color: '#666' }}>Searching...</span>}
-      </div>
 
-      {/* Status messages */}
-      {isBusy && !searchLoading && <p style={{ color: '#666' }}>Loading recipes...</p>}
-      {error && <p style={{ color: 'red', backgroundColor: '#ffeaa7', padding: '10px', borderRadius: '4px' }}>{error}</p>}
+        <div className="recipes-main">
+          <div className="recipes-topbar">
+            <h1>{initialLoad ? "Featured Recipes" : "All Recipes"}</h1>
 
-      {/* Recipes Grid */}
-      <div className="recipe-grid">
-        {!isBusy && recipes.length === 0 && (
-          <p style={{ color: '#666', fontSize: '18px', textAlign: 'center', marginTop: '40px' }}>
-            {searchTerm ? `No recipes found for "${searchTerm}"` : 'No recipes found.'}
-          </p>
-        )}
-
-        {recipes.map(recipe => {
-          const id = recipe.apiId || recipe.idMeal || recipe._id;
-          const title = recipe.title || recipe.strMeal || 'Untitled';
-          const image = recipe.image || recipe.strMealThumb || '';
-
-          return (
-            <div className="recipe-card" key={id || title}>
-              <h3 style={{ margin: '0 0 10px 0', fontSize: '16px' }}>{title}</h3>
-              {image ? (
-                <img src={image} alt={title} style={{ width: '100%', height: '200px', objectFit: 'cover', borderRadius: '8px', marginBottom: '10px' }} />
-              ) : (
-                <div style={{ height: '200px', backgroundColor: '#eee', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '10px', color: '#666' }}>
-                  No image available
-                </div>
-              )}
-              <Link to={`/recipe/${id}`}>
-                <button style={{ width: '100%', padding: '8px', backgroundColor: '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '14px' }}>
-                  View Recipe
-                </button>
-              </Link>
+            <div className="recipes-sort">
+              <label htmlFor="recipe-sort">Sort:</label>
+              <select
+                id="recipe-sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="newest">Newest</option>
+                <option value="popular">Popular</option>
+                <option value="rating">Top Rated</option>
+                <option value="quickest">Quickest</option>
+                <option value="az">A–Z</option>
+                <option value="za">Z–A</option>
+                <option value="category">Category</option>
+              </select>
             </div>
-          );
-        })}
+          </div>
+
+          {loading && <p>Loading recipes...</p>}
+          {error && <p>{error}</p>}
+
+          <div className="recipe-grid">
+            {sortedRecipes.map((recipe) => {
+              const recipeId = recipe.apiId || recipe._id;
+              const title = recipe.title;
+              const image = recipe.image;
+
+              return (
+                <RecipeCard
+                  key={recipeId}
+                  id={recipeId}
+                  title={title}
+                  image={image}
+                  recipe={recipe}
+                  favorites={favorites}
+                  setFavorites={setFavorites}
+                  shoppingList={shoppingList}
+                  setShoppingList={setShoppingList}
+                  user={user}
+                />
+              );
+            })}
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }

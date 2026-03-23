@@ -1,0 +1,153 @@
+.card {
+  background: #ffffff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+}
+
+.card-imgWrap {
+  position: relative;
+  height: 170px;
+  overflow: hidden;
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-iconActions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 8px;
+  z-index: 2;
+}
+
+.card-iconBtn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #555;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: transform 0.18s ease, background 0.2s ease, color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+.card-iconBtn:hover {
+  transform: scale(1.08);
+  background: #ffffff;
+}
+
+.card-iconBtn:disabled {
+  opacity: 0.7;
+  cursor: default;
+  transform: none;
+}
+
+.card-icon {
+  font-size: 16px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Default button colors */
+.card-iconBtn-favorite {
+  color: #d96b86;
+}
+
+.card-iconBtn-cart {
+  color: #6ea85f;
+}
+
+/* Saved favorite state */
+.card-iconBtn-favorite.is-active {
+  background: #ffe3ea;
+  color: #e5486b;
+}
+
+/* Temporary success state for either icon */
+.card-iconBtn-favorite.is-success,
+.card-iconBtn-cart.is-success {
+  background: #e4f6e8;
+  color: #2e7d32;
+  transform: scale(1.08);
+}
+
+/* Optional: make success feel a touch smoother */
+.card-iconBtn-favorite.is-success:hover,
+.card-iconBtn-cart.is-success:hover {
+  background: #def2e3;
+}
+
+.card-body {
+  padding: 14px;
+}
+
+.card-title {
+  color: #111;
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+
+.card-meta {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 10px;
+  line-height: 1.5;
+}
+
+.stars {
+  color: gold;
+}
+
+.rating {
+  margin-left: 4px;
+  font-weight: 600;
+  color: #333;
+}
+
+.reviews {
+  margin-left: 6px;
+  color: #777;
+  font-size: 13px;
+}
+
+.card-time {
+  margin-left: 6px;
+  color: #777;
+}
+
+.card-btn {
+  width: 100%;
+  padding: 10px;
+  background: #4caf50;
+  border: none;
+  border-radius: 8px;
+  color: #ffffff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.card-btn:hover {
+  background: #43a047;
+}

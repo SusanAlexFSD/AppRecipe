@@ -1,0 +1,130 @@
+.rs {
+  width: 280px;
+  background: #f4f4f1;
+  border: 1px solid #dcdcdc;
+  border-radius: 18px;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.rs-brand {
+  padding: 20px 22px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #222;
+  background: #e9ece6;
+  border-bottom: 1px solid #dcdcdc;
+}
+
+.rs-filterSection {
+  padding: 18px 22px;
+  border-bottom: 1px solid #e3e3e3;
+}
+
+.rs-filterHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 14px;
+}
+
+.rs-checkboxList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rs-checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  color: #444;
+  cursor: pointer;
+}
+
+.rs-checkboxRow input[type="checkbox"] {
+  width: 19px;
+  height: 19px;
+  accent-color: #6ea85f;
+  cursor: pointer;
+}
+
+.rs-empty {
+  font-size: 14px;
+  color: #888;
+  margin: 0;
+}
+
+.rs-clearBtn {
+  display: block;
+  width: calc(100% - 44px);
+  margin: 18px auto;
+  padding: 13px 18px;
+  border: none;
+  border-radius: 999px;
+  background: #d9e5d0;
+  color: #5c7550;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.rs-clearBtn:hover {
+  background: #cfddc5;
+}
+
+.rs-quickAccessBlock {
+  padding: 18px 22px 22px;
+  border-top: 1px solid #e3e3e3;
+}
+
+.rs-quickAccessTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #222;
+  margin-bottom: 12px;
+}
+
+.rs-quickAccessButtons {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rs-actionBtn {
+  display: block;
+  width: 100%;
+  text-align: center;
+  text-decoration: none;
+  padding: 13px 16px;
+  border-radius: 12px;
+  font-weight: 700;
+  color: white;
+  transition: transform 0.15s ease, opacity 0.2s ease;
+  box-sizing: border-box;
+}
+
+.rs-actionBtn:hover {
+  transform: translateY(-1px);
+  opacity: 0.95;
+}
+
+.rs-actionBtn--shopping {
+  background: #6ea85f;
+}
+
+.rs-actionBtn--shopping:hover {
+  background: #5f9652;
+}
+
+.rs-actionBtn--favorites {
+  background: #d96b86;
+}
+
+.rs-actionBtn--favorites:hover {
+  background: #c85b76;
+}

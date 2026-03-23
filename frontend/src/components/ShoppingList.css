@@ -1,0 +1,253 @@
+/* ============================
+   PAGE WRAPPER
+   ============================ */
+
+.shoppingList-page {
+  padding: 32px;
+  max-width: 1400px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* ============================
+   BACK LINK
+   ============================ */
+
+.shoppingList-nav {
+  margin-bottom: 20px;
+}
+
+.shoppingList-backLink {
+  color: #2f5d3a;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.shoppingList-backLink:hover {
+  text-decoration: underline;
+}
+
+/* ============================
+   HEADER
+   ============================ */
+
+.shoppingList-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #e8e3dc;
+  margin-bottom: 24px;
+}
+
+.shoppingList-title {
+  margin: 0;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 700;
+  color: #1f1f1f;
+  letter-spacing: -0.02em;
+}
+
+.shoppingList-message {
+  margin-top: 6px;
+  font-size: 1.05rem;
+  color: #666;
+}
+
+/* ============================
+   CLEAR ALL BUTTON
+   ============================ */
+
+.shoppingList-clearBtn {
+  border: none;
+  background: #7fbe5d;
+  border: 1px solid #72ac54;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.shoppingList-clearBtn:hover {
+  background: #72b150;
+  transform: translateY(-1px);
+}
+
+/* ============================
+   LIST OF RECIPE CARDS
+   ============================ */
+
+.shoppingList-items {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ============================
+   RECIPE CARD
+   ============================ */
+
+.shoppingList-card {
+  background: #ffffff;
+  border: 1px solid #e6dfd8;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+
+.shoppingList-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 28px rgba(0, 0, 0, 0.12);
+}
+
+/* ============================
+   CARD HEADER
+   ============================ */
+
+.shoppingList-cardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.shoppingList-recipeTitle {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #222;
+}
+
+/* Remove button */
+.shoppingList-removeBtn {
+  border: none;
+  background: #f26b5e;
+  color: white;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.15s ease;
+}
+
+.shoppingList-removeBtn:hover {
+  background: #e45d50;
+  transform: translateY(-1px);
+}
+
+/* ============================
+   INGREDIENT LIST
+   ============================ */
+
+.shoppingList-ingredients {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.shoppingList-ingredient {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.shoppingList-ingredientIcon {
+  font-size: 0.9rem;
+  color: #7fbe5d;
+}
+
+/* ============================
+   MODAL
+   ============================ */
+
+.confirmModal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 20, 20, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  z-index: 1000;
+}
+
+.confirmModal {
+  width: 100%;
+  max-width: 420px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 22px;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.2);
+  animation: modalFadeIn 0.18s ease;
+}
+
+.confirmModal-title {
+  margin: 0 0 10px;
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #222;
+}
+
+.confirmModal-text {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: #666;
+}
+
+.confirmModal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.confirmModal-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s ease, background 0.2s ease;
+}
+
+.confirmModal-btn:hover {
+  transform: translateY(-1px);
+}
+
+.confirmModal-btn-secondary {
+  background: #f1f1f1;
+  color: #333;
+}
+
+.confirmModal-btn-secondary:hover {
+  background: #e7e7e7;
+}
+
+.confirmModal-btn-danger {
+  background: #d9534f;
+  color: #fff;
+}
+
+.confirmModal-btn-danger:hover {
+  background: #c94440;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

@@ -1,9 +1,9 @@
 // src/components/Recipe.jsx
-import React, { useEffect, useState, useContext } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import axios from '../api/axios';
-import { AuthContext } from '../context/AuthContext';
-import './Recipe.css';
+import React, { useEffect, useState, useContext } from "react";
+import { useParams, Link } from "react-router-dom";
+import axios from "../api/axios";
+import { AuthContext } from "../context/AuthContext";
+import "./Recipe.css";
 
 export default function Recipe() {
   const { id } = useParams();
@@ -11,139 +11,142 @@ export default function Recipe() {
 
   const [recipe, setRecipe] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [favorites, setFavorites] = useState([]);
   const [shoppingList, setShoppingList] = useState([]);
 
   const getRecipeId = (r) => r.apiId || r.id || r._id;
 
-  // --- Helpers ---
-  // Split a long instructions string into readable steps for <ol>
+  // Format instructions into readable steps
   const formatInstructions = (text) => {
     if (!text) return [];
-
-    // Normalize whitespace
     const normalized = text
-      .replace(/\r\n/g, '\n')
-      .replace(/\r/g, '\n')
-      .replace(/\t/g, ' ')
+      .replace(/\r\n/g, "\n")
+      .replace(/\r/g, "\n")
+      .replace(/\t/g, " ")
       .trim();
 
-    // 1) Try splitting by line breaks when present
-    let parts = normalized.split(/\n+/).map(s => s.trim()).filter(Boolean);
+    let parts = normalized.split(/\n+/).map((s) => s.trim()).filter(Boolean);
 
-    // 2) If it looks like one giant paragraph, split by sentence-ish boundaries.
-    // Use a conservative split on ". " or ".\n" while keeping abbreviations somewhat intact.
     if (parts.length <= 2) {
       parts = normalized
-        .split(/(?<=\.)\s+(?=[A-Z])|(?<=\.)\n+/) // split after a period followed by space/newline and a capital
-        .map(s => s.trim())
+        .split(/(?<=\.)\s+(?=[A-Z])|(?<=\.)\n+/)
+        .map((s) => s.trim())
         .filter(Boolean);
     }
 
-    // 3) Clean up bullet/number prefixes that TheMealDB sometimes includes
-    parts = parts.map(step => step.replace(/^\s*[-•\d)+.]+\s*/, '').trim()).filter(Boolean);
-
-    return parts;
+    return parts.map((step) =>
+      step.replace(/^\s*[-•\d)+.]+\s*/, "").trim()
+    );
   };
 
-  // --- Favorites ---
+  // -----------------------------
+  // FAVORITES — Add
+  // -----------------------------
   const handleAddToFavorites = async () => {
     if (!recipe) return;
-    const userId = user?._id || null;
     const recipeId = getRecipeId(recipe);
 
-    if (favorites.some(fav => getRecipeId(fav) === recipeId)) {
-      alert('Already in favorites');
-      return;
-    }
+    // Instant UI update
+    setFavorites((prev) => [...prev, { apiId: recipeId }]);
 
     try {
-      if (userId) {
-        await axios.post('/favorites/add', {
-          userId,
+      if (user?._id) {
+        await axios.post("/favorites/add", {
+          userId: user._id,
           recipeId,
           recipeTitle: recipe.title,
           recipeImage: recipe.image,
         });
-        // fetch latest favorites from server (safer than optimistic push)
-        const res = await axios.get(`/favorites/${userId}`);
+
+        const res = await axios.get(`/favorites/${user._id}`);
         setFavorites(res.data.favorites || []);
       } else {
-        const updatedFavorites = [...favorites, recipe];
-        setFavorites(updatedFavorites);
-        localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+        const updated = [...favorites, recipe];
+        setFavorites(updated);
+        localStorage.setItem("favorites", JSON.stringify(updated));
       }
-      alert('Added to favorites!');
     } catch (err) {
-      console.error('Failed to add to favorites:', err);
-      alert('Failed to add to favorites.');
+      console.error("Failed to add to favorites:", err);
     }
   };
 
+  // -----------------------------
+  // FAVORITES — Remove
+  // -----------------------------
   const handleRemoveFromFavorites = async () => {
     if (!recipe) return;
-    const userId = user?._id || null;
     const recipeId = getRecipeId(recipe);
 
+    // Instant UI update
+    setFavorites((prev) =>
+      prev.filter((fav) => getRecipeId(fav) !== recipeId)
+    );
+
     try {
-      if (userId) {
-        await axios.delete('/favorites/remove', { data: { userId, recipeId } });
-        const res = await axios.get(`/favorites/${userId}`);
+      if (user?._id) {
+        await axios.delete("/favorites/remove", {
+          data: { userId: user._id, recipeId },
+        });
+
+        const res = await axios.get(`/favorites/${user._id}`);
         setFavorites(res.data.favorites || []);
       } else {
-        const updatedFavorites = favorites.filter(fav => getRecipeId(fav) !== recipeId);
-        setFavorites(updatedFavorites);
-        localStorage.setItem('favorites', JSON.stringify(updatedFavorites));
+        const updated = favorites.filter(
+          (fav) => getRecipeId(fav) !== recipeId
+        );
+        setFavorites(updated);
+        localStorage.setItem("favorites", JSON.stringify(updated));
       }
-      alert('Removed from favorites!');
     } catch (err) {
-      console.error('Failed to remove from favorites:', err);
-      alert('Failed to remove from favorites.');
+      console.error("Failed to remove from favorites:", err);
     }
   };
 
-  // --- Shopping List ---
+  // -----------------------------
+  // SHOPPING LIST — Add
+  // -----------------------------
   const handleAddToShoppingList = async () => {
-    if (!user?._id) {
-      alert('You must be logged in to add to shopping list.');
-      return;
-    }
+    if (!user?._id) return;
 
-    if (recipe?.ingredients?.length && recipe?.title) {
-      try {
-        await axios.post('/shoppingList', {
-          userId: user._id,
-          recipeName: recipe.title,
-          ingredients: recipe.ingredients,
-        });
-        alert('Ingredients added to shopping list!');
-      } catch (err) {
-        console.error('Failed to save shopping list:', err);
-        alert('Failed to save shopping list.');
-      }
+    // Instant UI update
+    setShoppingList((prev) => [...prev, recipe]);
+
+    try {
+      await axios.post("/shoppingList", {
+        userId: user._id,
+        recipeName: recipe.title,
+        ingredients: recipe.ingredients,
+      });
+    } catch (err) {
+      console.error("Failed to save shopping list:", err);
     }
   };
 
-  // --- Local storage sync for guests ---
+  // -----------------------------
+  // Load local storage for guests
+  // -----------------------------
   useEffect(() => {
     if (!user) {
-      const savedFavs = JSON.parse(localStorage.getItem('favorites')) || [];
+      const savedFavs = JSON.parse(localStorage.getItem("favorites")) || [];
       setFavorites(savedFavs);
     }
-    const savedList = JSON.parse(localStorage.getItem('shoppingList')) || [];
+
+    const savedList = JSON.parse(localStorage.getItem("shoppingList")) || [];
     setShoppingList(savedList);
   }, [user]);
 
   useEffect(() => {
-    if (!user) localStorage.setItem('favorites', JSON.stringify(favorites));
+    if (!user) localStorage.setItem("favorites", JSON.stringify(favorites));
   }, [favorites, user]);
 
   useEffect(() => {
-    localStorage.setItem('shoppingList', JSON.stringify(shoppingList));
+    localStorage.setItem("shoppingList", JSON.stringify(shoppingList));
   }, [shoppingList]);
 
-  // --- Fetch favorites for logged-in users ---
+  // -----------------------------
+  // Load favorites for logged-in users
+  // -----------------------------
   useEffect(() => {
     const fetchFavorites = async () => {
       if (!user?._id) return;
@@ -151,25 +154,29 @@ export default function Recipe() {
         const res = await axios.get(`/favorites/${user._id}`);
         setFavorites(res.data.favorites || []);
       } catch (err) {
-        console.error('Failed to load favorites:', err);
+        console.error("Failed to load favorites:", err);
       }
     };
     fetchFavorites();
   }, [user]);
 
-  // --- Fetch recipe by ID ---
+  // -----------------------------
+  // Fetch recipe
+  // -----------------------------
   useEffect(() => {
     const fetchRecipe = async () => {
       try {
         setLoading(true);
-        setError('');
+        setError("");
         const res = await axios.get(`/recipes/${id}`);
-        const recipeData = res.data.recipe || res.data;
-        setRecipe(recipeData);
+        setRecipe(res.data.recipe || res.data);
       } catch (err) {
-        console.error('API Error:', err);
-        if (err.response?.status === 404) setError('Recipe not found');
-        else setError('Failed to load recipe');
+        console.error("API Error:", err);
+        setError(
+          err.response?.status === 404
+            ? "Recipe not found"
+            : "Failed to load recipe"
+        );
       } finally {
         setLoading(false);
       }
@@ -178,67 +185,100 @@ export default function Recipe() {
   }, [id]);
 
   if (loading) return <p>Loading recipe...</p>;
-  if (error) return <p style={{ color: 'red' }}>{error}</p>;
+  if (error) return <p style={{ color: "red" }}>{error}</p>;
   if (!recipe) return <p>No recipe found.</p>;
 
-  const isFavorited = favorites.some(fav => getRecipeId(fav) === getRecipeId(recipe));
+  const isFavorited = favorites.some(
+    (fav) => getRecipeId(fav) === getRecipeId(recipe)
+  );
+
+  const isInShoppingList = shoppingList.some(
+    (item) => getRecipeId(item) === getRecipeId(recipe)
+  );
+
   const steps = formatInstructions(recipe.instructions);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <nav style={{ marginBottom: '20px' }}>
+    <div className="recipe-page">
+      <nav className="recipe-back">
         <Link to="/">← Back to Recipes</Link>
       </nav>
 
-      <div className="recipe-detail">
-        <h1>{recipe.title}</h1>
+      <h1 className="recipe-title">{recipe.title}</h1>
+
+      {/* BBC-STYLE TOP SECTION */}
+      <div className="recipe-top">
         {recipe.image && (
-          <img className="recipe-image" src={recipe.image} alt={recipe.title} />
+          <img className="recipe-top-image" src={recipe.image} alt={recipe.title} />
         )}
 
-        <div className="recipe-actions">
-          {isFavorited ? (
-            <button className="favorite-btn remove" onClick={handleRemoveFromFavorites}>
-              Remove from Favorites
-            </button>
-          ) : (
-            <button className="favorite-btn" onClick={handleAddToFavorites}>
-              Add to Favorites
-            </button>
-          )}
-          <button className="shopping-btn" onClick={handleAddToShoppingList}>
-            Add to Shopping List
-          </button>
+        <div className="recipe-meta">
+          <div className="recipe-rating">
+            ★★★★☆ <span>4.5</span> | <span>2 ratings</span>
+            <button className="rate-btn">Rate this recipe</button>
+          </div>
+
+          <div className="recipe-times">
+            <p><strong>Prepare:</strong> Less than 30 mins</p>
+            <p><strong>Cook:</strong> Less than 10 mins</p>
+            <p><strong>Serves:</strong> 2</p>
+          </div>
+
+          {/* ACTION BUTTONS */}
+          <div className="recipe-actions">
+            {isFavorited ? (
+              <button className="favorite-btn remove" onClick={handleRemoveFromFavorites}>
+                ✔ In Favorites
+              </button>
+            ) : (
+              <button className="favorite-btn" onClick={handleAddToFavorites}>
+                + Add to Favorites
+              </button>
+            )}
+
+            {isInShoppingList ? (
+              <button className="shopping-btn added">
+                ✔ Added to Shopping List
+              </button>
+            ) : (
+              <button className="shopping-btn" onClick={handleAddToShoppingList}>
+                + Add to Shopping List
+              </button>
+            )}
+          </div>
+
+          <div className="recipe-links">
+            <Link to="/favorites" className="link-btn">View Favorites</Link>
+            <Link to="/shoppingList" className="link-btn">View Shopping List</Link>
+          </div>
         </div>
+      </div>
 
-        <div className="linked-buttons" style={{ marginTop: '1rem' }}>
-          <Link to="/favorites" className="link-btn">
-            View Favorites
-          </Link>
-          <Link to="/shoppingList" className="link-btn" style={{ marginLeft: '1rem' }}>
-            View Shopping List
-          </Link>
-        </div>
+      {/* TWO COLUMNS BELOW */}
+      <div className="recipe-columns">
+        <section className="ingredients-section">
+          <h2>Ingredients</h2>
+          <ul>
+            {recipe.ingredients?.length ? (
+              recipe.ingredients.map((item, index) => <li key={index}>{item}</li>)
+            ) : (
+              <li>No ingredients available</li>
+            )}
+          </ul>
+        </section>
 
-        <h2>Ingredients</h2>
-        <ul>
-          {recipe.ingredients && recipe.ingredients.length > 0 ? (
-            recipe.ingredients.map((item, index) => <li key={index}>{item}</li>)
+        <section className="instructions-section">
+          <h2>Method</h2>
+          {steps.length ? (
+            <ol className="instructions-list">
+              {steps.map((step, idx) => (
+                <li key={idx}>{step}</li>
+              ))}
+            </ol>
           ) : (
-            <li>No ingredients available</li>
+            <p>No instructions available.</p>
           )}
-        </ul>
-
-        <h2>Instructions</h2>
-        {steps.length > 0 ? (
-          <ol className="instructions-list">
-            {steps.map((step, idx) => (
-              <li key={idx}>{step}</li>
-            ))}
-          </ol>
-        ) : (
-          <p>No instructions available.</p>
-        )}
+        </section>
       </div>
     </div>
   );

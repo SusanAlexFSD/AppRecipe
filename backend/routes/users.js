@@ -80,12 +80,12 @@ router.post('/guest', async (req, res) => {
       { expiresIn: '1h' }
     );
 
-    // ✅ Match structure expected by frontend
     res.json({
       token,
       user: {
         _id: guestUser._id,
         username: guestUser.username,
+        displayName: 'Guest',
         isGuest: guestUser.isGuest,
       }
     });
@@ -94,6 +94,5 @@ router.post('/guest', async (req, res) => {
     res.status(500).json({ message: 'Failed to create guest user' });
   }
 });
-
 
 module.exports = router;

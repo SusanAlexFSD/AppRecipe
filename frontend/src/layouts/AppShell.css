@@ -1,0 +1,52 @@
+:root{
+  --bg: #ffffff;
+  --panel: #0f172a;
+  --panel-2: #111c33;
+  --card: rgba(255,255,255,0.06);
+  --border: rgba(255,255,255,0.10);
+  --text: rgba(255,255,255,0.92);
+  --muted: rgba(255,255,255,0.68);
+  --brand: #22c55e; /* green accent */
+  --shadow: 0 12px 30px rgba(0,0,0,0.25);
+  --radius: 16px;
+}
+
+.app {
+  min-height: 100vh;
+  background: radial-gradient(1200px 600px at 20% 0%, rgba(34,197,94,0.20), transparent 55%),
+              radial-gradient(900px 500px at 100% 30%, rgba(59,130,246,0.16), transparent 55%),
+              var(--bg);
+  color: var(--text);
+}
+
+
+.app-sidebar {
+  background: white;
+  border: 1px solid #eee;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+}
+
+
+.app-sidebar{
+    width: 260px;
+  padding: 16px;
+  position: sticky;
+  top: 86px; /* adjust to your navbar height */
+  align-self: start;
+  max-height: calc(100vh - 110px);
+  overflow: auto;
+}
+
+
+@media (max-width: 980px){
+  .app-body{
+    flex-direction: column;
+  }
+
+  .app-sidebar{
+    width: 100%;
+    position: relative;
+    top: auto;
+  }
+}

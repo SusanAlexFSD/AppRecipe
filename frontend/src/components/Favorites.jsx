@@ -1,25 +1,25 @@
-import React, { useEffect, useState, useContext } from 'react';
-import { Link } from 'react-router-dom';
-import axios from '../api/axios';
-import { AuthContext } from '../context/AuthContext';
+import React, { useEffect, useState, useContext, useMemo } from "react";
+import { Link } from "react-router-dom";
+import axios from "../api/axios";
+import { AuthContext } from "../context/AuthContext";
+import "./Favorites.css";
 
 export default function Favorites() {
   const [favorites, setFavorites] = useState([]);
+  const [sortBy, setSortBy] = useState("newest");
   const { user } = useContext(AuthContext);
 
   useEffect(() => {
     const fetchFavorites = async () => {
       if (user?._id) {
-        // Logged-in user – fetch from backend
         try {
           const res = await axios.get(`/favorites/${user._id}`);
           setFavorites(res.data.favorites || []);
         } catch (error) {
-          console.error('Failed to fetch favorites from DB:', error);
+          console.error("Failed to fetch favorites from DB:", error);
         }
       } else {
-        // Guest – load from localStorage
-        const saved = JSON.parse(localStorage.getItem('favorites')) || [];
+        const saved = JSON.parse(localStorage.getItem("favorites")) || [];
         setFavorites(saved);
       }
     };
@@ -32,94 +32,198 @@ export default function Favorites() {
 
     try {
       if (userId) {
-        // Logged-in user – remove from DB
-        await axios.delete('/favorites/remove', {
+        await axios.delete("/favorites/remove", {
           data: { userId, recipeId },
         });
       }
 
-      // Update UI state (both guest and logged-in)
-      setFavorites((prev) =>
-        prev.filter((fav) => (fav.recipeId || fav._id || fav.apiId || fav.id) !== recipeId)
-      );
-
-      // For guests, update localStorage
-      if (!userId) {
-        const updated = favorites.filter(
-          (fav) => (fav.recipeId || fav._id || fav.apiId || fav.id) !== recipeId
+      setFavorites((prev) => {
+        const updated = prev.filter(
+          (fav) =>
+            (fav.recipeId || fav._id || fav.apiId || fav.id) !== recipeId
         );
-        localStorage.setItem('favorites', JSON.stringify(updated));
-      }
+
+        if (!userId) {
+          localStorage.setItem("favorites", JSON.stringify(updated));
+        }
+
+        return updated;
+      });
     } catch (error) {
-      console.error('Failed to remove favorite:', error);
-      alert('Failed to remove favorite.');
+      console.error("Failed to remove favorite:", error);
+      alert("Failed to remove favorite.");
     }
   };
 
+  const sortedFavorites = useMemo(() => {
+    const items = [...favorites];
+
+    switch (sortBy) {
+      case "az":
+        return items.sort((a, b) =>
+          (a.recipeTitle || a.title || a.strMeal || "")
+            .toLowerCase()
+            .localeCompare(
+              (b.recipeTitle || b.title || b.strMeal || "").toLowerCase()
+            )
+        );
+
+      case "za":
+        return items.sort((a, b) =>
+          (b.recipeTitle || b.title || b.strMeal || "")
+            .toLowerCase()
+            .localeCompare(
+              (a.recipeTitle || a.title || a.strMeal || "").toLowerCase()
+            )
+        );
+
+      case "newest":
+      default:
+        return items.reverse();
+    }
+  }, [favorites, sortBy]);
+
   return (
-    <div style={{ padding: '20px' }}>
-      <nav style={{ marginBottom: '20px' }}>
-        <Link to="/">← Back to Recipes</Link>
-      </nav>
+    <div className="favorites-page">
+      {/* BACK LINK */}
+      <Link to="/" className="favorites-back">
+        <span>←</span>
+        <span>Back to Recipes</span>
+      </Link>
 
-      <h1>My Favorite Recipes</h1>
+      {/* HEADER */}
+      <section className="favorites-hero">
+        <div className="favorites-title-wrap">
+          <div className="favorites-title-row">
+            <span className="favorites-heart">❤️</span>
+            <h1 className="favorites-title">Your Favorites</h1>
+          </div>
 
+          <p className="favorites-subtitle">
+            {favorites.length} saved recipe{favorites.length === 1 ? "" : "s"}
+          </p>
+        </div>
+
+        <div className="favorites-controls">
+          <div className="favorites-control">
+            <span className="favorites-control-label">Sort by:</span>
+            <select
+              className="favorites-sort-select"
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+            >
+              <option value="newest">Newest</option>
+              <option value="az">A–Z</option>
+              <option value="za">Z–A</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      {/* EMPTY STATE */}
       {favorites.length === 0 ? (
-        <p style={{ color: '#777' }}>You haven't added any favorites yet.</p>
+        <div className="favorites-empty">
+          <p>You haven't added any favorites yet.</p>
+        </div>
       ) : (
-        <div className="recipe-grid">
-          {favorites.map((recipe) => {
-            const id = recipe.recipeId || recipe.apiId || recipe.idMeal || recipe._id || recipe.id;
-            const title = recipe.recipeTitle || recipe.title || recipe.strMeal;
-            const image = recipe.recipeImage || recipe.image || recipe.strMealThumb;
+        <div className="favorites-grid">
+          {sortedFavorites.map((recipe) => {
+            const id =
+              recipe.recipeId ||
+              recipe.apiId ||
+              recipe.idMeal ||
+              recipe._id ||
+              recipe.id;
+
+            const title =
+              recipe.recipeTitle ||
+              recipe.title ||
+              recipe.strMeal ||
+              "Untitled";
+
+            const image =
+              recipe.recipeImage ||
+              recipe.image ||
+              recipe.strMealThumb ||
+              "";
+
+            const category =
+              recipe.category ||
+              recipe.strCategory ||
+              recipe.recipeCategory ||
+              "Recipe";
+
+            const time =
+              recipe.readyInMinutes ||
+              recipe.cookTime ||
+              recipe.prepTime ||
+              recipe.cookTimeMinutes ||
+              "45 min";
+
+            const rating =
+              recipe.rating ||
+              recipe.averageRating ||
+              recipe.avgRating ||
+              "4.8";
 
             return (
-              <div key={id} className="recipe-card">
-                <h3>{title}</h3>
-                {image && (
-                  <img
-                    src={image}
-                    alt={title}
-                    style={{
-                      width: '100%',
-                      height: '200px',
-                      objectFit: 'cover',
-                      borderRadius: '8px',
-                      marginBottom: '10px',
-                    }}
-                  />
-                )}
-                <Link to={`/recipe/${id}`}>
-                  <button
-                    style={{
-                      width: '100%',
-                      padding: '8px',
-                      backgroundColor: '#007bff',
-                      color: 'white',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    View Recipe
-                  </button>
-                </Link>
-                <button
-                  onClick={() => handleRemove(id)}
-                  style={{
-                    marginTop: '10px',
-                    width: '100%',
-                    padding: '8px',
-                    backgroundColor: 'red',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                  }}
-                >
-                  Remove from Favorites
-                </button>
-              </div>
+              <article key={id} className="favorite-card">
+                <div className="favorite-image-wrap">
+                  {image && (
+                    <img
+                      src={image}
+                      alt={title}
+                      className="favorite-image"
+                    />
+                  )}
+
+                  <div className="favorite-top-actions">
+                    <button
+                      type="button"
+                      className="favorite-icon-btn favorite-remove-btn"
+                      onClick={() => handleRemove(id)}
+                      aria-label="Remove from favorites"
+                      title="Remove from favorites"
+                    >
+                      ♥
+                    </button>
+
+                    <Link
+                      to={`/recipe/${id}`}
+                      className="favorite-view-link"
+                      aria-label={`View ${title}`}
+                      title="View recipe"
+                    >
+                      <button type="button" className="favorite-icon-btn">
+                        👁
+                      </button>
+                    </Link>
+                  </div>
+                </div>
+
+                <div className="favorite-content">
+                  <h2 className="favorite-title">{title}</h2>
+                  <p className="favorite-meta">{category}</p>
+
+                  <div className="favorite-rating-row">
+                    <span className="favorite-stars">★★★★☆</span>
+                    <span>{rating}</span>
+                  </div>
+
+                  <div className="favorite-actions-row">
+                    <span className="favorite-time">🕒 {time}</span>
+
+                    <Link
+                      to={`/recipe/${id}`}
+                      className="favorite-view-link"
+                    >
+                      <button type="button" className="favorite-view-btn">
+                        View Recipe
+                      </button>
+                    </Link>
+                  </div>
+                </div>
+              </article>
             );
           })}
         </div>
