@@ -76,7 +76,7 @@
 }
 
 /* ============================
-   SORT CONTROLS
+   SORT CONTROLS + DELETE ALL
    ============================ */
 
 .favorites-controls {
@@ -112,6 +112,34 @@
   font-weight: 600;
   color: #232323;
   cursor: pointer;
+}
+
+/* ============================
+   DELETE ALL BUTTON (NEW)
+   ============================ */
+
+.favorites-delete-all {
+  padding: 10px 18px;
+  background: #e24646;
+  color: #fff;
+  border: none;
+  border-radius: 14px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+  transition: background 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.favorites-delete-all:hover {
+  background: #c93a3a;
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.18);
+}
+
+.favorites-delete-all:active {
+  transform: translateY(0);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.12);
 }
 
 /* ============================
