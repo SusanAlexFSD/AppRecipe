@@ -2,12 +2,22 @@ require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-
-const favoritesRoutes = require('./routes/favorites');
+const path = require('path');
 
 const app = express();
 
-// 📝 Request logging middleware (log all requests)
+// 🧭 Debug: show server directory + resolved favorites route path
+console.log('Server file dir:', __dirname);
+console.log('Favorites route resolved to:', require.resolve('./routes/favorites'));
+
+// 📦 Import routes
+const favoritesRoutes = require('./routes/favorites');
+const userRoutes = require('./routes/users');
+const recipeRoutes = require('./routes/recipes');
+const shoppingListRoutes = require('./routes/shoppingList');
+const auth = require('./middleware/auth');
+
+// 📝 Request logging middleware
 app.use((req, res, next) => {
   console.log(`📝 ${new Date().toISOString()} - ${req.method} ${req.url}`);
   if (req.body && Object.keys(req.body).length > 0) {
@@ -20,7 +30,7 @@ app.use((req, res, next) => {
 app.use(cors());
 app.use(express.json());
 
-// 🔧 Test routes FIRST
+// 🔧 Test routes
 app.get('/', (req, res) => {
   console.log('🏠 Root route hit');
   res.send('API is running');
@@ -28,21 +38,18 @@ app.get('/', (req, res) => {
 
 app.get('/test', (req, res) => {
   console.log('🧪 Test route hit!');
-  res.json({ message: 'Console logging works!', timestamp: new Date().toISOString() });
+  res.json({
+    message: 'Console logging works!',
+    timestamp: new Date().toISOString()
+  });
 });
-
-// 📦 Import routes
-const userRoutes = require('./routes/users');
-const recipeRoutes = require('./routes/recipes');
-const shoppingListRoutes = require('./routes/shoppingList'); // ✅ Added shoppingList route
-const auth = require('./middleware/auth');
 
 console.log('✅ Routes imported successfully');
 
-// 🚏 Use routes
+// 🚏 Mount routes
 app.use('/api/users', userRoutes);
 app.use('/api/recipes', recipeRoutes);
-app.use('/api/shoppingList', shoppingListRoutes); // ✅ Mounted shoppingList route
+app.use('/api/shoppingList', shoppingListRoutes);
 app.use('/api/favorites', favoritesRoutes);
 
 console.log('✅ Routes mounted successfully');
@@ -58,7 +65,7 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-// 🌍 Port and environment
+// 🌍 Port + environment
 const PORT = process.env.PORT || 5000;
 const ENV = process.env.NODE_ENV || 'development';
 
