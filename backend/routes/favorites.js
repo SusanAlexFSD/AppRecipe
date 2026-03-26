@@ -18,6 +18,10 @@ router.delete('/clear/:userId', async (req, res) => {
   const { userId } = req.params;
   console.log('🔥 DELETE ALL ROUTE HIT for user:', userId);
 
+  if (!userId) {
+    return res.status(400).json({ message: 'userId is required' });
+  }
+
   try {
     const result = await Favorite.deleteMany({ userId });
 
@@ -29,7 +33,7 @@ router.delete('/clear/:userId', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Failed to clear favorites:', error);
-    return res.status(500).json({ message: 'Server error', error });
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 

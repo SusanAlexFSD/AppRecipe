@@ -8,44 +8,54 @@ export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
   const navigate = useNavigate();
 
-const handleSubmit = async e => {
-  e.preventDefault();
-  try {
-    const res = await axios.post('/users/login', { email, password });
+  const handleSubmit = async e => {
+    e.preventDefault();
+    setError('');
+    setSuccess('');
 
-    console.log('✅ Login response:', res.data); // ← Add this
+    try {
+      const res = await axios.post('/users/login', { email, password });
+      const { token, user } = res.data;
 
-    const { token, user } = res.data;
-login(user, token);
+      login(user, token);
 
-    navigate('/');
-  } catch (err) {
-    setError(err.response?.data?.message || 'Login failed');
-  }
-};
+      setSuccess('Successfully logged in!');
 
+      setTimeout(() => {
+        navigate('/');
+      }, 1200);
 
+    } catch (err) {
+      setError(err.response?.data?.message || 'Login failed');
+    }
+  };
 
   return (
     <form onSubmit={handleSubmit}>
       <h2>Login</h2>
+
       {error && <p style={{ color: 'red' }}>{error}</p>}
+      {success && <p style={{ color: 'green' }}>{success}</p>}
+
       <input 
-        type="email" 
-        placeholder="Email" 
-        value={email} 
-        onChange={e => setEmail(e.target.value)} 
-        required 
+        type="email"
+        placeholder="Email"
+        value={email}
+        onChange={e => setEmail(e.target.value)}
+        required
       />
+
       <input 
-        type="password" 
-        placeholder="Password" 
-        value={password} 
-        onChange={e => setPassword(e.target.value)} 
-        required 
+        type="password"
+        placeholder="Password"
+        value={password}
+        onChange={e => setPassword(e.target.value)}
+        required
       />
+
       <button type="submit">Login</button>
     </form>
   );

@@ -4,6 +4,8 @@ import axios from "../api/axios";
 import { AuthContext } from "../context/AuthContext";
 import "./Favorites.css";
 
+console.log('🔥 FAVORITES ROUTE FILE LOADED - VERSION WITH CLEAR DELETE');
+
 export default function Favorites() {
   const [favorites, setFavorites] = useState([]);
   const [sortBy, setSortBy] = useState("newest");
@@ -81,30 +83,24 @@ export default function Favorites() {
   // Delete ALL favorites
   // -----------------------------
   const handleDeleteAll = async () => {
-    const userId = user?._id || null;
+  const userId = user?._id;
 
-    try {
-      if (userId) {
-        console.log("Axios baseURL:", axios.defaults.baseURL);
-        console.log("Deleting all favorites for user:", userId);
-        console.log(
-          "Full delete-all URL:",
-          `${axios.defaults.baseURL}/favorites/clear/${userId}`
-        );
+  try {
+    if (userId) {
+      console.log("Deleting all favorites for user:", userId);
 
-        await axios.delete(`/favorites/clear/${userId}`);
-      }
-
-      setFavorites([]);
-
-      if (!userId) {
-        localStorage.removeItem("favorites");
-      }
-    } catch (error) {
-      console.error("Failed to clear favorites:", error);
-      console.error("Delete-all response:", error?.response);
+      const res = await axios.delete(`/favorites/clear/${userId}`);
+      console.log("Delete-all response:", res.data);
+    } else {
+      localStorage.removeItem("favorites");
     }
-  };
+
+    setFavorites([]);
+  } catch (error) {
+    console.error("Failed to clear favorites:", error);
+    console.error("Delete-all response:", error?.response);
+  }
+};
 
   // -----------------------------
   // Sorting
@@ -171,7 +167,8 @@ export default function Favorites() {
           </div>
 
           {favorites.length > 0 && (
-            <button
+           <button
+              type="button"
               className="favorites-delete-all"
               onClick={handleDeleteAll}
             >
