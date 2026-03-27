@@ -12,7 +12,7 @@ router.delete('/debug-delete', (req, res) => {
 });
 
 /* ============================================================
-   DELETE ALL FAVORITES
+   DELETE ALL FAVORITES FOR A USER
    ============================================================ */
 router.delete('/clear/:userId', async (req, res) => {
   const { userId } = req.params;
