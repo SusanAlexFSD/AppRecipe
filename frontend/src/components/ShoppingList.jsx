@@ -41,27 +41,15 @@ export default function ShoppingList() {
   }, [shoppingList]);
 
   const openClearAllModal = () => {
-    setConfirmModal({
-      open: true,
-      type: "clearAll",
-      recipeName: "",
-    });
+    setConfirmModal({ open: true, type: "clearAll", recipeName: "" });
   };
 
   const openRemoveRecipeModal = (recipeName) => {
-    setConfirmModal({
-      open: true,
-      type: "removeRecipe",
-      recipeName,
-    });
+    setConfirmModal({ open: true, type: "removeRecipe", recipeName });
   };
 
   const closeModal = () => {
-    setConfirmModal({
-      open: false,
-      type: null,
-      recipeName: "",
-    });
+    setConfirmModal({ open: false, type: null, recipeName: "" });
   };
 
   const handleConfirmAction = async () => {
@@ -72,9 +60,8 @@ export default function ShoppingList() {
       }
 
       if (confirmModal.type === "removeRecipe") {
-        const recipeName = confirmModal.recipeName;
         const res = await axios.delete(
-          `/shoppingList/${user._id}/${encodeURIComponent(recipeName)}`
+          `/shoppingList/${user._id}/${encodeURIComponent(confirmModal.recipeName)}`
         );
         setShoppingList(res.data.list || []);
       }
@@ -97,12 +84,8 @@ export default function ShoppingList() {
     return (
       <div className="shoppingList-page">
         <nav className="shoppingList-nav">
-          <Link to="/" className="shoppingList-backLink">
-            <span>←</span>
-            <span>Back to Recipes</span>
-          </Link>
+          <Link to="/" className="shoppingList-backLink">← Back to Recipes</Link>
         </nav>
-
         <p className="shoppingList-message">Loading shopping list...</p>
       </div>
     );
@@ -111,22 +94,16 @@ export default function ShoppingList() {
   return (
     <>
       <div className="shoppingList-page">
+
         {/* BACK LINK */}
         <nav className="shoppingList-nav">
-          <Link to="/" className="shoppingList-backLink">
-            <span>←</span>
-            <span>Back to Recipes</span>
-          </Link>
+          <Link to="/" className="shoppingList-backLink">← Back to Recipes</Link>
         </nav>
 
         {/* HEADER */}
         <section className="shoppingList-header">
-          <div className="shoppingList-heroLeft">
-            <div className="shoppingList-titleRow">
-              <span className="shoppingList-titleIcon">🛒</span>
-              <h1 className="shoppingList-title">Shopping List</h1>
-            </div>
-
+          <div>
+            <h1 className="shoppingList-title">Shopping List</h1>
             <p className="shoppingList-message">
               {shoppingList.length} recipe{shoppingList.length === 1 ? "" : "s"} •{" "}
               {totalIngredients} ingredient{totalIngredients === 1 ? "" : "s"}
@@ -134,17 +111,9 @@ export default function ShoppingList() {
           </div>
 
           {shoppingList.length > 0 && (
-            <div className="shoppingList-heroActions">
-              <div className="shoppingList-summaryChip">
-             </div>
-
-              <button
-                className="shoppingList-clearBtn"
-                onClick={openClearAllModal}
-              >
-                Clear All
-              </button>
-            </div>
+            <button className="shoppingList-clearBtn" onClick={openClearAllModal}>
+              Clear All
+            </button>
           )}
         </section>
 
@@ -154,45 +123,45 @@ export default function ShoppingList() {
             <p>No ingredients in your shopping list.</p>
           </div>
         ) : (
-          <div className="shoppingList-items">
+          <div className="shoppingList-grid">
             {shoppingList.map((recipe, idx) => {
               const uniqueIngredients = [...new Set(recipe.ingredients || [])];
 
               return (
                 <article key={idx} className="shoppingList-card">
-                  <div className="shoppingList-cardHeader">
-                    <div className="shoppingList-recipeMeta">
-                      <h2 className="shoppingList-recipeTitle">
-                        {recipe.recipeName}
-                      </h2>
 
-                      <span className="shoppingList-count">
-                        <span>🧾</span>
-                        <span>
-                          {uniqueIngredients.length} ingredient
-                          {uniqueIngredients.length === 1 ? "" : "s"}
-                        </span>
-                      </span>
-                    </div>
-
-                    <button
-                      className="shoppingList-removeBtn"
-                      onClick={() => openRemoveRecipeModal(recipe.recipeName)}
-                    >
-                      Remove
-                    </button>
+                  {/* IMAGE + TITLE */}
+                  <div className="shoppingList-thumbRow">
+                    {recipe.image && (
+                      <img
+                        src={recipe.image}
+                        alt={recipe.recipeName}
+                        className="shoppingList-thumb"
+                      />
+                    )}
+                    <h2 className="shoppingList-recipeTitle">{recipe.recipeName}</h2>
                   </div>
+
+                  <p className="shoppingList-count">
+                    🧾 {uniqueIngredients.length} ingredient
+                    {uniqueIngredients.length === 1 ? "" : "s"}
+                  </p>
 
                   <ul className="shoppingList-ingredients">
                     {uniqueIngredients.map((ingredient, i) => (
                       <li key={i} className="shoppingList-ingredient">
-                        <span className="shoppingList-ingredientIcon">✓</span>
-                        <span className="shoppingList-ingredientText">
-                          {ingredient}
-                        </span>
+                        <span className="shoppingList-ingredientIcon">✔</span>
+                        <span>{ingredient}</span>
                       </li>
                     ))}
                   </ul>
+
+                  <button
+                    className="shoppingList-removeBtn"
+                    onClick={() => openRemoveRecipeModal(recipe.recipeName)}
+                  >
+                    Remove
+                  </button>
                 </article>
               );
             })}

@@ -5,9 +5,14 @@ const ShoppingList = require('../models/ShoppingList');
 // ✅ GET shopping list for a user
 router.get('/:userId', async (req, res) => {
   console.log('📥 GET /api/shoppingList/:userId called with', req.params.userId);
+
   try {
     const list = await ShoppingList.findOne({ userId: req.params.userId });
-    if (!list) return res.status(200).json({ list: [] });
+
+    if (!list) {
+      return res.status(200).json({ list: [] });
+    }
+
     res.json({ list: list.items });
   } catch (err) {
     console.error('❌ Failed to fetch shopping list:', err);
@@ -16,14 +21,14 @@ router.get('/:userId', async (req, res) => {
 });
 
 
-
-// ✅ POST: add to shopping list
-// ✅ POST: add recipe + ingredients to shopping list
+// ✅ POST: add recipe + ingredients + image to shopping list
 router.post('/', async (req, res) => {
-  const { userId, recipeName, ingredients } = req.body;
+  const { userId, recipeName, ingredients, image } = req.body;
 
   if (!userId || !recipeName || !Array.isArray(ingredients)) {
-    return res.status(400).json({ error: 'userId, recipe name and ingredients are required' });
+    return res.status(400).json({
+      error: 'userId, recipeName and ingredients are required'
+    });
   }
 
   try {
@@ -33,19 +38,34 @@ router.post('/', async (req, res) => {
       list = new ShoppingList({ userId, items: [] });
     }
 
-    const existingRecipe = list.items.find(item => item.recipeName === recipeName);
+    const existingRecipe = list.items.find(
+      item => item.recipeName === recipeName
+    );
 
     if (existingRecipe) {
-      existingRecipe.ingredients = [...new Set([...existingRecipe.ingredients, ...ingredients])];
+      // merge ingredients
+      existingRecipe.ingredients = [
+        ...new Set([...existingRecipe.ingredients, ...ingredients])
+      ];
+
+      // update image if missing
+      if (image && !existingRecipe.image) {
+        existingRecipe.image = image;
+      }
     } else {
-      list.items.push({ recipeName, ingredients });
+      // NEW recipe entry with image included
+      list.items.push({
+        recipeName,
+        ingredients,
+        image: image || null
+      });
     }
 
     await list.save();
-
     res.json({ list: list.items });
+
   } catch (err) {
-    console.error('Failed to update shopping list:', err);
+    console.error('❌ Failed to update shopping list:', err);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -74,6 +94,7 @@ router.delete('/:userId/:recipeName/ingredient/:ingredient', async (req, res) =>
   }
 });
 
+
 // ✅ DELETE an entire recipe
 router.delete('/:userId/:recipeName', async (req, res) => {
   try {
@@ -93,10 +114,12 @@ router.delete('/:userId/:recipeName', async (req, res) => {
   }
 });
 
+
 // ✅ DELETE all recipes
 router.delete('/:userId', async (req, res) => {
   try {
     const { userId } = req.params;
+
     const list = await ShoppingList.findOne({ userId });
     if (!list) return res.status(404).json({ error: 'Shopping list not found' });
 
@@ -109,7 +132,5 @@ router.delete('/:userId', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
-
 
 module.exports = router;

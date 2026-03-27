@@ -22,6 +22,7 @@ export default function RecipeCard({
   const favoriteTimerRef = useRef(null);
   const shoppingTimerRef = useRef(null);
 
+  // Cleanup timers
   useEffect(() => {
     return () => {
       if (favoriteTimerRef.current) clearTimeout(favoriteTimerRef.current);
@@ -51,6 +52,9 @@ export default function RecipeCard({
     }, 1000);
   };
 
+  // -----------------------------
+  // FAVORITES
+  // -----------------------------
   const handleFavoriteClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -64,6 +68,7 @@ export default function RecipeCard({
       setFavoriteLoading(true);
 
       if (isFavorited) {
+        // REMOVE FAVORITE
         if (userId) {
           await axios.delete("/favorites/remove", {
             data: { userId, recipeId },
@@ -73,16 +78,16 @@ export default function RecipeCard({
             prev.filter((fav) => String(getRecipeId(fav)) !== String(recipeId))
           );
         } else {
-          const updatedFavorites = favorites.filter(
+          const updated = favorites.filter(
             (fav) => String(getRecipeId(fav)) !== String(recipeId)
           );
-
-          setFavorites(updatedFavorites);
-          localStorage.setItem("favorites", JSON.stringify(updatedFavorites));
+          setFavorites(updated);
+          localStorage.setItem("favorites", JSON.stringify(updated));
         }
 
         setFavoriteJustAdded(false);
       } else {
+        // ADD FAVORITE
         const recipePreview = {
           apiId: id,
           id,
@@ -100,9 +105,9 @@ export default function RecipeCard({
 
           setFavorites((prev) => [...prev, recipePreview]);
         } else {
-          const updatedFavorites = [...favorites, recipePreview];
-          setFavorites(updatedFavorites);
-          localStorage.setItem("favorites", JSON.stringify(updatedFavorites));
+          const updated = [...favorites, recipePreview];
+          setFavorites(updated);
+          localStorage.setItem("favorites", JSON.stringify(updated));
         }
 
         showTemporaryFavoriteSuccess();
@@ -115,6 +120,9 @@ export default function RecipeCard({
     }
   };
 
+  // -----------------------------
+  // SHOPPING LIST
+  // -----------------------------
   const handleShoppingClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -126,6 +134,7 @@ export default function RecipeCard({
 
       let fullRecipe = recipe;
 
+      // Fetch full recipe if needed
       if (!fullRecipe?.ingredients?.length) {
         const res = await axios.get(`/recipes/${id}`);
         fullRecipe = res.data.recipe || res.data;
@@ -136,13 +145,21 @@ export default function RecipeCard({
         return;
       }
 
+      // ⭐ IMPORTANT: Ensure image is included
+      const recipeImage = fullRecipe.image || image || null;
+
+      console.log("FULL RECIPE SENT TO SHOPPING LIST:", fullRecipe);
+
+
       if (user?._id) {
         await axios.post("/shoppingList", {
           userId: user._id,
           recipeName: fullRecipe.title,
           ingredients: fullRecipe.ingredients,
+          image: recipeImage, // ⭐ FIXED
         });
       } else {
+        // LocalStorage fallback
         const savedList =
           JSON.parse(localStorage.getItem("shoppingList")) || [];
 
@@ -152,6 +169,7 @@ export default function RecipeCard({
             recipeId: getRecipeId(fullRecipe) || id,
             recipeName: fullRecipe.title,
             ingredients: fullRecipe.ingredients,
+            image: recipeImage, // ⭐ FIXED
           },
         ];
 
@@ -170,6 +188,9 @@ export default function RecipeCard({
     }
   };
 
+  // -----------------------------
+  // RENDER
+  // -----------------------------
   return (
     <div className="card">
       <div className="card-imgWrap">
