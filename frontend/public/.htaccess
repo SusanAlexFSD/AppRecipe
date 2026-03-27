@@ -1,6 +1,14 @@
 RewriteEngine On
 RewriteBase /AppRecipe/
+
+# 1️⃣ API requests must be handled FIRST
+RewriteCond %{REQUEST_URI} ^/AppRecipe/api/
+RewriteRule ^api/(.*)$ https://recipeapp-bl2q.onrender.com/api/$1 [P,L]
+
+# 2️⃣ Allow index.html directly
 RewriteRule ^index\.html$ - [L]
+
+# 3️⃣ SPA fallback for everything else
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule . /AppRecipe/index.html [L]

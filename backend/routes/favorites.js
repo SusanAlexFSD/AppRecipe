@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Favorite = require('../models/Favorite');
 
-console.log('🔥 FAVORITES ROUTE FILE LOADED');
+console.log('🔥 FAVORITES ROUTE FILE LOADED (FIXED VERSION)');
 
 /* ============================================================
    DEBUG ROUTE
@@ -94,9 +94,9 @@ router.post('/add', async (req, res) => {
 
 /* ============================================================
    GET FAVORITES FOR A USER
-   KEEP THIS DYNAMIC ROUTE LAST
+   FIXED: NO MORE ROUTE COLLISIONS
    ============================================================ */
-router.get('/:userId', async (req, res) => {
+router.get('/user/:userId', async (req, res) => {
   const { userId } = req.params;
   console.log('📥 GET FAVORITES ROUTE HIT for user:', userId);
 

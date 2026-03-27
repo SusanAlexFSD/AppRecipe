@@ -4,32 +4,26 @@ import axios from "../api/axios";
 import { AuthContext } from "../context/AuthContext";
 import "./Favorites.css";
 
-console.log('🔥 FAVORITES ROUTE FILE LOADED - VERSION WITH CLEAR DELETE');
+console.log("🔥 FAVORITES COMPONENT LOADED (FIXED VERSION)");
 
 export default function Favorites() {
   const [favorites, setFavorites] = useState([]);
   const [sortBy, setSortBy] = useState("newest");
   const { user } = useContext(AuthContext);
 
-  // -----------------------------
-  // Load favorites
-  // -----------------------------
+  /* ============================================================
+     LOAD FAVORITES
+     ============================================================ */
   useEffect(() => {
     const fetchFavorites = async () => {
       if (user?._id) {
         try {
-          console.log("Axios baseURL:", axios.defaults.baseURL);
-          console.log("Fetching favorites for user:", user._id);
-          console.log(
-            "Full fetch URL:",
-            `${axios.defaults.baseURL}/favorites/${user._id}`
-          );
+          console.log("Fetching favorites for:", user._id);
 
-          const res = await axios.get(`/favorites/${user._id}`);
+          const res = await axios.get(`/favorites/user/${user._id}`);
           setFavorites(res.data.favorites || []);
         } catch (error) {
-          console.error("Failed to fetch favorites from DB:", error);
-          console.error("Fetch response:", error?.response);
+          console.error("❌ Failed to fetch favorites:", error);
         }
       } else {
         const saved = JSON.parse(localStorage.getItem("favorites")) || [];
@@ -40,22 +34,14 @@ export default function Favorites() {
     fetchFavorites();
   }, [user]);
 
-  // -----------------------------
-  // Remove a single favorite
-  // -----------------------------
+  /* ============================================================
+     REMOVE A SINGLE FAVORITE
+     ============================================================ */
   const handleRemove = async (recipeId) => {
     const userId = user?._id || null;
 
     try {
       if (userId) {
-        console.log("Axios baseURL:", axios.defaults.baseURL);
-        console.log("Removing favorite for user:", userId);
-        console.log("Recipe ID:", recipeId);
-        console.log(
-          "Full remove URL:",
-          `${axios.defaults.baseURL}/favorites/remove`
-        );
-
         await axios.delete("/favorites/remove", {
           data: { userId, recipeId },
         });
@@ -74,37 +60,34 @@ export default function Favorites() {
         return updated;
       });
     } catch (error) {
-      console.error("Failed to remove favorite:", error);
-      console.error("Remove response:", error?.response);
+      console.error("❌ Failed to remove favorite:", error);
     }
   };
 
-  // -----------------------------
-  // Delete ALL favorites
-  // -----------------------------
+  /* ============================================================
+     DELETE ALL FAVORITES
+     ============================================================ */
   const handleDeleteAll = async () => {
-  const userId = user?._id;
+    const userId = user?._id;
 
-  try {
-    if (userId) {
-      console.log("Deleting all favorites for user:", userId);
+    try {
+      if (userId) {
+        console.log("Deleting ALL favorites for:", userId);
+        const res = await axios.delete(`/favorites/clear/${userId}`);
+        console.log("Delete-all response:", res.data);
+      } else {
+        localStorage.removeItem("favorites");
+      }
 
-      const res = await axios.delete(`/favorites/clear/${userId}`);
-      console.log("Delete-all response:", res.data);
-    } else {
-      localStorage.removeItem("favorites");
+      setFavorites([]);
+    } catch (error) {
+      console.error("❌ Failed to clear favorites:", error);
     }
+  };
 
-    setFavorites([]);
-  } catch (error) {
-    console.error("Failed to clear favorites:", error);
-    console.error("Delete-all response:", error?.response);
-  }
-};
-
-  // -----------------------------
-  // Sorting
-  // -----------------------------
+  /* ============================================================
+     SORTING
+     ============================================================ */
   const sortedFavorites = useMemo(() => {
     const items = [...favorites];
 
@@ -133,6 +116,9 @@ export default function Favorites() {
     }
   }, [favorites, sortBy]);
 
+  /* ============================================================
+     RENDER
+     ============================================================ */
   return (
     <div className="favorites-page">
       <Link to="/" className="favorites-back">
@@ -167,7 +153,7 @@ export default function Favorites() {
           </div>
 
           {favorites.length > 0 && (
-           <button
+            <button
               type="button"
               className="favorites-delete-all"
               onClick={handleDeleteAll}
