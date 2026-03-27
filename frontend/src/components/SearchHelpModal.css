@@ -1,0 +1,48 @@
+.sh-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(3px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 999;
+}
+
+.sh-modal {
+  background: #ffffff;
+  padding: 2rem;
+  width: 320px;
+  border-radius: 18px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.15);
+  text-align: center;
+  border: 1px solid #e5e5e5;
+}
+
+.sh-title {
+  margin-bottom: 1rem;
+  font-size: 1.4rem;
+  color: #2f3b2f;
+  font-family: Georgia, serif;
+}
+
+.sh-text {
+  color: #555;
+  margin-bottom: 1.5rem;
+  line-height: 1.5;
+}
+
+.sh-btn {
+  background: #7fbe5d;
+  border: 1px solid #72ac54;
+  color: white;
+  padding: 0.6rem 1.4rem;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.sh-btn:hover {
+  background: #72b150;
+}

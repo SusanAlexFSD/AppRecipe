@@ -2,6 +2,7 @@ import React, { useContext, useState } from 'react';
 import axios from '../api/axios';
 import { AuthContext } from '../context/AuthContext.jsx';
 import { useNavigate } from 'react-router-dom';
+import "./GuestLogin.css";
 
 export default function GuestLogin() {
   const { login } = useContext(AuthContext);
@@ -28,14 +29,19 @@ export default function GuestLogin() {
     }
   };
 
-  return (
-    <div>
+ return (
+  <div className="guest-container">
+    <div className="guest-card">
       <h2>Continue as Guest</h2>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {success && <p style={{ color: 'green' }}>{success}</p>}
+      {error && <p className="guest-error">{error}</p>}
+      {success && <p className="guest-success">{success}</p>}
 
-      <button onClick={handleGuestLogin}>Login as Guest</button>
+      <button className="guest-btn" onClick={handleGuestLogin}>
+        Login as Guest
+      </button>
     </div>
-  );
+  </div>
+);
+
 }

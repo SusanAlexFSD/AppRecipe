@@ -94,11 +94,18 @@
   background: #f8fff5;
   color: #6ca25c;
   font-weight: 700;
+  font-size: 16px;
+
+  /* THE IMPORTANT PART */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
   cursor: pointer;
-  display: grid;
-  place-items: center;
   transition: 0.2s ease;
 }
+
+
 
 .nav-search-help:hover {
   background: #eef8e8;
