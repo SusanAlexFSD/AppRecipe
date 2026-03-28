@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import LogoutButton from "./LogoutButton.jsx";
 import { AuthContext } from "../context/AuthContext.jsx";
 import SearchHelpModal from "./SearchHelpModal.jsx";
+import logoImage from "../assets/recipesoup.png";
 import "./NavBar.css";
 
 export default function NavBar({
@@ -19,17 +20,19 @@ export default function NavBar({
   return (
     <>
       <nav className="navbar">
-        {/* Logo */}
-        <Link to="/" className="nav-logo-card">
-          <div className="nav-logo-icon-wrap">
-            <span className="nav-logo-icon">🔎</span>
-          </div>
+        <Link to="/" className="nav-logo-card" aria-label="DishLab home">
+          <img
+            src={logoImage}
+            alt="DishLab logo"
+            className="nav-logo-image"
+          />
           <span className="nav-logo-text">DishLab</span>
         </Link>
 
-        {/* Search Bar */}
         <div className="nav-search">
-          <span className="nav-search-icon">⌕</span>
+          <span className="nav-search-icon" aria-hidden="true">
+            ⌕
+          </span>
 
           <input
             type="text"
@@ -37,6 +40,7 @@ export default function NavBar({
             placeholder="Search recipes..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
+            aria-label="Search recipes"
           />
 
           <button
@@ -50,26 +54,30 @@ export default function NavBar({
           </button>
         </div>
 
-        {/* Right-side Actions */}
         <div className="nav-actions">
           {user ? (
             <>
-              <Link to="/favorites" className="nav-pill-btn favorites-btn">
-                <span className="nav-pill-icon">♥</span>
+              <Link to="/favorites" className="nav-pill-btn" aria-label="Favorites">
+                <span className="nav-pill-icon" aria-hidden="true">
+                  ♥
+                </span>
                 <span className="nav-pill-text">Favorites</span>
               </Link>
 
               <Link
                 to="/shoppingList"
-                className="nav-icon-btn shopping-btn"
+                className="nav-cart-btn"
                 aria-label="Shopping List"
                 title="Shopping List"
               >
-                🛒
+                <span aria-hidden="true">🛒</span>
               </Link>
 
               <div className="nav-user-chip" title={displayName}>
-                👋 {displayName}
+                <span className="nav-user-icon" aria-hidden="true">
+                  👋
+                </span>
+                <span className="nav-user-text">{displayName}</span>
               </div>
 
               <div className="nav-logout-wrap">
@@ -78,13 +86,13 @@ export default function NavBar({
             </>
           ) : (
             <div className="nav-auth-links">
-              <Link to="/login" className="nav-text-link">
+              <Link to="/login" className="nav-pill-btn nav-text-link">
                 Login
               </Link>
-              <Link to="/register" className="nav-text-link">
+              <Link to="/register" className="nav-pill-btn nav-text-link">
                 Register
               </Link>
-              <Link to="/guest" className="nav-guest-btn">
+              <Link to="/guest" className="nav-pill-btn nav-guest-btn">
                 Guest
               </Link>
             </div>
@@ -92,7 +100,6 @@ export default function NavBar({
         </div>
       </nav>
 
-      {/* Search Help Modal */}
       <SearchHelpModal open={showHelp} onClose={() => setShowHelp(false)} />
     </>
   );

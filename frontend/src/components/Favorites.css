@@ -1,11 +1,11 @@
 /* ============================
-   PAGE WRAPPER (NO SHELL)
+   PAGE WRAPPER
    ============================ */
 
 .favorites-page {
   min-height: 100vh;
-  padding: 32px;
-  background: linear-gradient(135deg, #edf6ee 0%, #f8f6f2 45%, #eef3ff 100%);
+  padding: 120px 32px 32px;
+  background: #e7e7e6;
   box-sizing: border-box;
   max-width: 1400px;
   margin: 0 auto;
@@ -39,7 +39,7 @@
   justify-content: space-between;
   gap: 18px;
   padding-bottom: 18px;
-  border-bottom: 1px solid #e8e3dc;
+  border-bottom: 1px solid #d8d4b8;
   margin-bottom: 24px;
 }
 
@@ -93,7 +93,7 @@
   min-height: 46px;
   padding: 0 14px;
   background: #fff;
-  border: 1px solid #ddd4cb;
+  border: 1px solid #d8d4b8;
   border-radius: 14px;
   color: #232323;
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.04);
@@ -115,7 +115,7 @@
 }
 
 /* ============================
-   DELETE ALL BUTTON (NEW)
+   DELETE ALL BUTTON
    ============================ */
 
 .favorites-delete-all {
@@ -167,7 +167,7 @@
   position: relative;
   overflow: hidden;
   background: #fff;
-  border: 1px solid #e6dfd8;
+  border: 1px solid #ddd8bb;
   border-radius: 18px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.07);
   transition: transform 0.25s ease, box-shadow 0.25s ease;
@@ -216,11 +216,20 @@
   background: rgba(255, 255, 255, 0.92);
   color: #2f2f2f;
   font-size: 1rem;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  padding: 0;
   cursor: pointer;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.14);
   transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.favorite-icon-btn span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .favorite-icon-btn:hover {
@@ -312,7 +321,7 @@
 
 @media (max-width: 900px) {
   .favorites-page {
-    padding: 18px;
+    padding: 92px 18px 18px;
   }
 
   .favorites-hero {
@@ -322,6 +331,10 @@
 }
 
 @media (max-width: 560px) {
+  .favorites-page {
+    padding: 84px 16px 16px;
+  }
+
   .favorites-grid {
     grid-template-columns: 1fr;
   }

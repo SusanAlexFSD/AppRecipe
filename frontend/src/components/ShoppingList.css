@@ -1,17 +1,20 @@
 /* ============================
-   PAGE WRAPPER
+   PAGE
    ============================ */
 
 body {
-  background: #f8f7f4;
+  margin: 0;
+  background: #e7e7e6;
   font-family: "Inter", sans-serif;
 }
 
 .shoppingList-page {
-  padding: 32px;
+  min-height: 100vh;
+  padding: 120px 32px 32px;
+  background: #e7e7e6;
+  box-sizing: border-box;
   max-width: 1400px;
   margin: 0 auto;
-  box-sizing: border-box;
 }
 
 /* ============================
@@ -23,6 +26,9 @@ body {
 }
 
 .shoppingList-backLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   color: #2f5d3a;
   font-weight: 600;
   text-decoration: none;
@@ -39,22 +45,31 @@ body {
 
 .shoppingList-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: 18px;
   padding-bottom: 18px;
-  border-bottom: 1px solid #e8e3dc;
+  border-bottom: 1px solid #d8d4b8;
   margin-bottom: 28px;
 }
 
+.shoppingList-headerText {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
 .shoppingList-title {
-  margin: 0;
+  margin: 0 0 8px;
   font-size: clamp(1.8rem, 3vw, 2.4rem);
   font-weight: 700;
+  line-height: 1.05;
+  letter-spacing: -0.03em;
   color: #1f1f1f;
 }
 
 .shoppingList-message {
-  margin-top: 6px;
+  margin: 0;
   font-size: 1.05rem;
   color: #666;
 }
@@ -67,18 +82,30 @@ body {
   border: none;
   background: #7fbe5d;
   border: 1px solid #72ac54;
-  color: white;
+  color: #fff;
   padding: 10px 18px;
   border-radius: 999px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
 }
 
 .shoppingList-clearBtn:hover {
   background: #72b150;
   transform: translateY(-1px);
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12);
+}
+
+/* ============================
+   EMPTY STATE
+   ============================ */
+
+.shoppingList-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #777;
+  font-size: 1rem;
 }
 
 /* ============================
@@ -97,7 +124,7 @@ body {
 
 .shoppingList-card {
   background: #ffffff;
-  border: 1px solid #e6dfd8;
+  border: 1px solid #ddd8bb;
   border-radius: 18px;
   padding: 20px;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
@@ -117,14 +144,28 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 12px;
 }
 
 .shoppingList-recipeTitle {
   margin: 0;
-  font-size: 1.4rem;
-  font-weight: 700;
-  color: #222;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: #1a1a1a;
+  position: relative;
+  padding-bottom: 6px;
+}
+
+.shoppingList-recipeTitle::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 250px;
+  height: 3px;
+  background: #7fbe5d; /* your green */
+  border-radius: 2px;
 }
 
 /* Remove button */
@@ -137,6 +178,7 @@ body {
   font-weight: 600;
   cursor: pointer;
   transition: background 0.2s ease, transform 0.15s ease, box-shadow 0.2s ease;
+  flex-shrink: 0;
 }
 
 .shoppingList-removeBtn:hover {
@@ -148,18 +190,17 @@ body {
 .shoppingList-thumbRow {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 14px;
+  gap: 14px;
+  margin-bottom: 16px;
 }
 
 .shoppingList-thumb {
-  width: 48px;
-  height: 48px;
-  border-radius: 10px;
+  width: 84px;
+  height: 84px;
+  border-radius: 12px;
   object-fit: cover;
   flex-shrink: 0;
 }
-
 
 /* ============================
    INGREDIENT LIST
@@ -276,5 +317,38 @@ body {
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
+  }
+}
+
+/* ============================
+   RESPONSIVE
+   ============================ */
+
+@media (max-width: 900px) {
+  .shoppingList-page {
+    padding: 92px 18px 18px;
+  }
+
+  .shoppingList-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+@media (max-width: 560px) {
+  .shoppingList-page {
+    padding: 84px 16px 16px;
+  }
+
+  .shoppingList-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shoppingList-title {
+    font-size: 1.6rem;
+  }
+
+  .shoppingList-message {
+    font-size: 1rem;
   }
 }

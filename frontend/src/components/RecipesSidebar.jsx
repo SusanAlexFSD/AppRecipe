@@ -43,6 +43,7 @@ export default function RecipesSidebar({
   selectedCategories = [],
   onToggleCategory,
   onClearFilters,
+  onShowAllRecipes,
 }) {
   return (
     <aside className="rs">
@@ -63,6 +64,14 @@ export default function RecipesSidebar({
         <div className="rs-quickAccessTitle">Quick Access</div>
 
         <div className="rs-quickAccessButtons">
+          <button
+            type="button"
+            className="rs-actionBtn rs-actionBtn--all"
+            onClick={onShowAllRecipes}
+          >
+            📖 All Recipes
+          </button>
+
           <Link className="rs-actionBtn rs-actionBtn--shopping" to="/shoppingList">
             🛒 Shopping List
           </Link>
