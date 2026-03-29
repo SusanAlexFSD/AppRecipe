@@ -1,533 +1,260 @@
-// src/components/Recipe.jsx
-import React, { useEffect, useState, useContext } from "react";
-import { useParams, Link } from "react-router-dom";
+import React, { useState, useEffect, useMemo, useContext } from "react";
 import axios from "../api/axios";
+import RecipeCard from "./RecipeCard";
+import RecipesSidebar from "./RecipesSidebar";
 import { AuthContext } from "../context/AuthContext";
 import "./Recipes.css";
 
-export default function Recipe() {
-  const { id } = useParams();
+export default function Recipes() {
   const { user } = useContext(AuthContext);
 
-  const [recipe, setRecipe] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [allRecipes, setAllRecipes] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [shoppingList, setShoppingList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [sortBy, setSortBy] = useState("newest");
+  const [initialLoad, setInitialLoad] = useState(true);
 
-  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
-  const [selectedRating, setSelectedRating] = useState(0);
-  const [submittingRating, setSubmittingRating] = useState(false);
-  const [ratingMessage, setRatingMessage] = useState("");
+  const normalizeValue = (value) => String(value || "").trim().toLowerCase();
 
-  const getRecipeId = (r) => r?.apiId || r?.id || r?._id;
+  // -----------------------------
+  // Fetch recipes (featured or all)
+  // -----------------------------
+  const fetchRecipes = async (limit = 20) => {
+    setLoading(true);
+    setError("");
 
-  const formatInstructions = (text) => {
-    if (!text) return [];
-
-    const normalized = text
-      .replace(/\r\n/g, "\n")
-      .replace(/\r/g, "\n")
-      .replace(/\t/g, " ")
-      .trim();
-
-    let parts = normalized
-      .split(/\n+/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-
-    if (parts.length <= 2) {
-      parts = normalized
-        .split(/(?<=\.)\s+(?=[A-Z])|(?<=\.)\n+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-
-    return parts.map((step) =>
-      step.replace(/^\s*[-•\d)+.]+\s*/, "").trim()
-    );
-  };
-
-  const formatIngredient = (ingredient) => {
-    if (!ingredient || typeof ingredient !== "string") {
-      return { prefix: "", bold: "", suffix: "" };
-    }
-
-    const text = ingredient.trim();
-
-    const quantityPattern =
-      /^((?:\d+\s\d+\/\d+|\d+\/\d+|\d+(?:\.\d+)?)\s*(?:[a-zA-Z]+(?:\s?[a-zA-Z]+)*)?\s*)/;
-
-    const quantityMatch = text.match(quantityPattern);
-
-    let prefix = "";
-    let remainder = text;
-
-    if (quantityMatch) {
-      prefix = quantityMatch[0].trim();
-      remainder = text.slice(quantityMatch[0].length).trim();
-    }
-
-    if (!remainder) {
-      return { prefix: "", bold: text, suffix: "" };
-    }
-
-    const commaIndex = remainder.indexOf(",");
-    const boldPart =
-      commaIndex === -1 ? remainder : remainder.slice(0, commaIndex).trim();
-    const suffix =
-      commaIndex === -1 ? "" : remainder.slice(commaIndex).trim();
-
-    return { prefix, bold: boldPart, suffix };
-  };
-
-  const fetchRecipe = async () => {
     try {
-      setLoading(true);
-      setError("");
+      const res = await axios.get("/recipes", { params: { limit } });
+      const data = Array.isArray(res.data) ? res.data : res.data.recipes || [];
 
-      const res = await axios.get(`/recipes/${id}`);
-      setRecipe(res.data.recipe || res.data);
+      const cleaned = data.map((recipe, index) => ({
+        ...recipe,
+        category: normalizeValue(recipe.category),
+        originalIndex: index,
+      }));
+
+      setAllRecipes(cleaned);
     } catch (err) {
-      console.error("API Error:", err);
-      setError(
-        err.response?.status === 404
-          ? "Recipe not found"
-          : "Failed to load recipe"
-      );
+      console.error(err);
+      setError("Failed to load recipes.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleAddToFavorites = async () => {
-    if (!recipe) return;
-    const recipeId = getRecipeId(recipe);
+  // -----------------------------
+  // Initial load (featured)
+  // -----------------------------
+  useEffect(() => {
+    fetchRecipes(20);
+  }, []);
 
-    setFavorites((prev) => [...prev, { apiId: recipeId }]);
-
-    try {
+  // -----------------------------
+  // Load favorites
+  // -----------------------------
+  useEffect(() => {
+    const loadFavorites = async () => {
       if (user?._id) {
-        await axios.post("/favorites/add", {
-          userId: user._id,
-          recipeId,
-          recipeTitle: recipe.title,
-          recipeImage: recipe.image,
-        });
-
-        const res = await axios.get(`/favorites/${user._id}`);
-        setFavorites(res.data.favorites || []);
+        try {
+          const res = await axios.get(`/favorites/${user._id}`);
+          setFavorites(res.data.favorites || []);
+        } catch (err) {
+          console.error("Failed to load favorites:", err);
+        }
       } else {
-        const updated = [...favorites, recipe];
-        setFavorites(updated);
-        localStorage.setItem("favorites", JSON.stringify(updated));
-      }
-    } catch (err) {
-      console.error("Failed to add to favorites:", err);
-    }
-  };
-
-  const handleRemoveFromFavorites = async () => {
-    if (!recipe) return;
-    const recipeId = getRecipeId(recipe);
-
-    setFavorites((prev) =>
-      prev.filter((fav) => getRecipeId(fav) !== recipeId)
-    );
-
-    try {
-      if (user?._id) {
-        await axios.delete("/favorites/remove", {
-          data: { userId: user._id, recipeId },
-        });
-
-        const res = await axios.get(`/favorites/${user._id}`);
-        setFavorites(res.data.favorites || []);
-      } else {
-        const updated = favorites.filter(
-          (fav) => getRecipeId(fav) !== recipeId
-        );
-        setFavorites(updated);
-        localStorage.setItem("favorites", JSON.stringify(updated));
-      }
-    } catch (err) {
-      console.error("Failed to remove from favorites:", err);
-    }
-  };
-
-  const handleAddToShoppingList = async () => {
-    if (!recipe) return;
-
-    if (!user?._id) {
-      const updated = [...shoppingList, recipe];
-      setShoppingList(updated);
-      localStorage.setItem("shoppingList", JSON.stringify(updated));
-      return;
-    }
-
-    setShoppingList((prev) => [...prev, recipe]);
-
-    try {
-      await axios.post("/shoppingList", {
-        userId: user._id,
-        recipeName: recipe.title,
-        ingredients: recipe.ingredients,
-      });
-    } catch (err) {
-      console.error("Failed to save shopping list:", err);
-    }
-  };
-
-  const openRatingModal = () => {
-    setRatingMessage("");
-    setSelectedRating(0);
-    setIsRatingModalOpen(true);
-  };
-
-  const closeRatingModal = () => {
-    if (submittingRating) return;
-    setIsRatingModalOpen(false);
-    setSelectedRating(0);
-    setRatingMessage("");
-  };
-
-  const handleSubmitRating = async () => {
-    if (!recipe || !selectedRating) {
-      setRatingMessage("Please choose a star rating.");
-      return;
-    }
-
-    try {
-      setSubmittingRating(true);
-      setRatingMessage("");
-
-      await axios.post("/recipes/ratings/add", {
-        recipeId: getRecipeId(recipe),
-        userId: user?._id || null,
-        rating: selectedRating,
-      });
-
-      setRatingMessage("Rating saved!");
-      await fetchRecipe();
-
-      setTimeout(() => {
-        setIsRatingModalOpen(false);
-        setSelectedRating(0);
-        setRatingMessage("");
-      }, 1200);
-    } catch (err) {
-      console.error("Failed to rate recipe:", err);
-      console.error("Server response:", err.response?.data);
-      console.error("Status:", err.response?.status);
-
-      setRatingMessage(
-        err.response?.data?.message || "Failed to save rating."
-      );
-    } finally {
-      setSubmittingRating(false);
-    }
-  };
-
-  const handlePrintRecipe = () => {
-    window.print();
-  };
-
-  const handleShareRecipe = async () => {
-    if (!recipe) return;
-
-    const shareUrl = window.location.href;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: recipe.title,
-          text: `Check out this recipe: ${recipe.title}`,
-          url: shareUrl,
-        });
-      } else {
-        await navigator.clipboard.writeText(shareUrl);
-        alert("Recipe link copied to clipboard!");
-      }
-    } catch (err) {
-      console.error("Failed to share recipe:", err);
-    }
-  };
-
-  useEffect(() => {
-    if (!user) {
-      const savedFavs = JSON.parse(localStorage.getItem("favorites")) || [];
-      setFavorites(savedFavs);
-    }
-
-    const savedList = JSON.parse(localStorage.getItem("shoppingList")) || [];
-    setShoppingList(savedList);
-  }, [user]);
-
-  useEffect(() => {
-    if (!user) {
-      localStorage.setItem("favorites", JSON.stringify(favorites));
-    }
-  }, [favorites, user]);
-
-  useEffect(() => {
-    localStorage.setItem("shoppingList", JSON.stringify(shoppingList));
-  }, [shoppingList]);
-
-  useEffect(() => {
-    const fetchFavorites = async () => {
-      if (!user?._id) return;
-
-      try {
-        const res = await axios.get(`/favorites/${user._id}`);
-        setFavorites(res.data.favorites || []);
-      } catch (err) {
-        console.error("Failed to load favorites:", err);
+        const saved = JSON.parse(localStorage.getItem("favorites")) || [];
+        setFavorites(saved);
       }
     };
 
-    fetchFavorites();
+    loadFavorites();
   }, [user]);
 
+  // -----------------------------
+  // Load shopping list
+  // -----------------------------
   useEffect(() => {
-    if (id) {
-      fetchRecipe();
+    const loadShoppingList = async () => {
+      if (user?._id) {
+        try {
+          const res = await axios.get(`/shoppingList/${user._id}`);
+          setShoppingList(res.data.items || []);
+        } catch (err) {
+          console.error("Failed to load shopping list:", err);
+        }
+      } else {
+        const saved = JSON.parse(localStorage.getItem("shoppingList")) || [];
+        setShoppingList(saved);
+      }
+    };
+
+    loadShoppingList();
+  }, [user]);
+
+  // -----------------------------
+  // Toggle category filter
+  // -----------------------------
+  const toggleCategory = (value) => {
+    const normalized = normalizeValue(value);
+
+    setSelectedCategories((prev) =>
+      prev.includes(normalized)
+        ? prev.filter((c) => c !== normalized)
+        : [...prev, normalized]
+    );
+
+    setInitialLoad(false);
+  };
+
+  const clearFilters = () => {
+    setSelectedCategories([]);
+    setInitialLoad(true);
+    fetchRecipes(20);
+  };
+
+  // -----------------------------
+  // Categories list
+  // -----------------------------
+  const categories = useMemo(() => {
+    const unique = [
+      ...new Set(allRecipes.map((r) => normalizeValue(r.category)).filter(Boolean)),
+    ];
+    return unique.sort((a, b) => a.localeCompare(b));
+  }, [allRecipes]);
+
+  // -----------------------------
+  // Apply category filtering (CLIENT SIDE)
+  // -----------------------------
+  const filteredRecipes = useMemo(() => {
+    if (selectedCategories.length === 0) return allRecipes;
+
+    return allRecipes.filter((recipe) =>
+      selectedCategories.includes(recipe.category)
+    );
+  }, [allRecipes, selectedCategories]);
+
+  // -----------------------------
+  // Sorting
+  // -----------------------------
+  const sortedRecipes = useMemo(() => {
+    const list = [...filteredRecipes];
+
+    switch (sortBy) {
+      case "popular":
+        return list.sort((a, b) => (b.likes ?? 0) - (a.likes ?? 0));
+
+      case "rating":
+        return list.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0));
+
+      case "quickest":
+        return list.sort(
+          (a, b) =>
+            (a.readyInMinutes ?? 9999) - (b.readyInMinutes ?? 9999)
+        );
+
+      case "az":
+        return list.sort((a, b) =>
+          (a.title || "").localeCompare(b.title || "")
+        );
+
+      case "za":
+        return list.sort((a, b) =>
+          (b.title || "").localeCompare(a.title || "")
+        );
+
+      case "category":
+        return list.sort((a, b) =>
+          normalizeValue(a.category).localeCompare(normalizeValue(b.category))
+        );
+
+      default:
+        return list.sort((a, b) => b.originalIndex - a.originalIndex);
     }
-  }, [id]);
+  }, [filteredRecipes, sortBy]);
 
-  if (loading) {
-    return (
-      <div className="recipe-page">
-        <p>Loading recipe...</p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="recipe-page">
-        <p style={{ color: "red" }}>{error}</p>
-      </div>
-    );
-  }
-
-  if (!recipe) {
-    return (
-      <div className="recipe-page">
-        <p>No recipe found.</p>
-      </div>
-    );
-  }
-
-  const isFavorited = favorites.some(
-    (fav) => getRecipeId(fav) === getRecipeId(recipe)
-  );
-
-  const isInShoppingList = shoppingList.some(
-    (item) => getRecipeId(item) === getRecipeId(recipe)
-  );
-
-  const steps = formatInstructions(recipe.instructions);
-  const ratingValue = recipe.rating ?? 4.5;
-  const ratingCount = recipe.ratingCount ?? 2;
-
+  // -----------------------------
+  // Render
+  // -----------------------------
   return (
-    <div className="recipe-page">
-      <nav className="recipe-back">
-        <Link to="/">← Back to Recipes</Link>
-      </nav>
-
-      <h1 className="recipe-title">{recipe.title}</h1>
-
-      <div className="recipe-rating-block">
-        <div className="recipe-rating">
-          <span className="recipe-stars">★★★★☆</span>
-          <span className="recipe-score">{ratingValue}</span>
-          <span className="recipe-rating-separator">|</span>
-          <span className="recipe-rating-count">
-            {ratingCount} {ratingCount === 1 ? "rating" : "ratings"}
-          </span>
-        </div>
-
-        <button className="rate-btn" type="button" onClick={openRatingModal}>
-          Rate this recipe
-        </button>
-      </div>
-
-      <div className="recipe-top">
-        <div className="recipe-image-column">
-          {recipe.image && (
-            <img
-              className="recipe-top-image"
-              src={recipe.image}
-              alt={recipe.title}
-            />
-          )}
-        </div>
-
-        <div className="recipe-meta">
-          <div className="recipe-times">
-            <div className="recipe-time-item">
-              <h3>Prepare</h3>
-              <p>Less than 30 mins</p>
-            </div>
-
-            <div className="recipe-time-item">
-              <h3>Cook</h3>
-              <p>Less than 10 mins</p>
-            </div>
-
-            <div className="recipe-time-item">
-              <h3>Serves</h3>
-              <p>2</p>
-            </div>
-          </div>
-
-          <div className="recipe-actions">
-            {isFavorited ? (
-              <button
-                className="favorite-btn remove"
-                onClick={handleRemoveFromFavorites}
-                type="button"
-              >
-                ✔ In Favorites
-              </button>
-            ) : (
-              <button
-                className="favorite-btn"
-                onClick={handleAddToFavorites}
-                type="button"
-              >
-                + Add to Favorites
-              </button>
-            )}
-
-            {isInShoppingList ? (
-              <button className="shopping-btn added" type="button">
-                ✔ Added to Shopping List
-              </button>
-            ) : (
-              <button
-                className="shopping-btn"
-                onClick={handleAddToShoppingList}
-                type="button"
-              >
-                + Add to Shopping List
-              </button>
-            )}
-          </div>
-
-          <div className="recipe-links">
-            <Link to="/favorites" className="link-btn">
-              View Favorites
-            </Link>
-
-            <Link to="/shoppingList" className="link-btn">
-              View Shopping List
-            </Link>
-
-            <button
-              type="button"
-              className="link-btn"
-              onClick={handlePrintRecipe}
-            >
-              Print Recipe
-            </button>
-
-            <button
-              type="button"
-              className="link-btn"
-              onClick={handleShareRecipe}
-            >
-              Share Recipe
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div className="recipe-columns">
-        <section className="ingredients-section">
-          <h2>Ingredients</h2>
-          <ul>
-            {recipe.ingredients?.length ? (
-              recipe.ingredients.map((item, index) => {
-                const { prefix, bold, suffix } = formatIngredient(item);
-
-                return (
-                  <li key={index}>
-                    {prefix && <span>{prefix} </span>}
-                    <strong className="ingredient-name">{bold}</strong>
-                    {suffix && <span> {suffix}</span>}
-                  </li>
-                );
-              })
-            ) : (
-              <li>No ingredients available</li>
-            )}
-          </ul>
-        </section>
-
-        <section className="instructions-section">
-          <h2>Method</h2>
-          {steps.length ? (
-            <ol className="instructions-list">
-              {steps.map((step, idx) => (
-                <li key={idx}>{step}</li>
-              ))}
-            </ol>
-          ) : (
-            <p>No instructions available.</p>
-          )}
-        </section>
-      </div>
-
-      {isRatingModalOpen && (
-        <div className="rating-modal-overlay" onClick={closeRatingModal}>
-          <div
-            className="rating-modal"
-            onClick={(e) => e.stopPropagation()}
+    <>
+      {/* HERO BANNER */}
+      <div className="recipes-hero">
+        <div className="recipes-hero-content">
+          <h1>Find Delicious Recipes</h1>
+          <p>Discover quick, easy, and delicious recipes suited to your taste.</p>
+          <button
+            className="browse-btn"
+            onClick={() => {
+              setInitialLoad(false);
+              fetchRecipes(200);
+            }}
           >
-            <button
-              className="rating-modal-close"
-              type="button"
-              onClick={closeRatingModal}
-              aria-label="Close rating modal"
-            >
-              ×
-            </button>
+            Browse All Recipes →
+          </button>
+        </div>
+      </div>
 
-            <h3 className="rating-modal-title">Rate this recipe</h3>
+      {/* MAIN LAYOUT */}
+      <div className="recipes-layout">
+        <RecipesSidebar
+          categories={categories}
+          selectedCategories={selectedCategories}
+          onToggleCategory={toggleCategory}
+          onClearFilters={clearFilters}
+        />
 
-            <div className="rating-modal-stars">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  className={`rating-modal-star ${
-                    selectedRating >= star ? "active" : ""
-                  }`}
-                  onClick={() => setSelectedRating(star)}
-                  aria-label={`Select ${star} star${star > 1 ? "s" : ""}`}
-                >
-                  ★
-                </button>
-              ))}
+        <div className="recipes-main">
+          <div className="recipes-topbar">
+            <h2>{initialLoad ? "Featured Recipes" : "All Recipes"}</h2>
+
+            <div className="recipes-sort">
+              <label htmlFor="recipe-sort">Sort:</label>
+              <select
+                id="recipe-sort"
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value)}
+              >
+                <option value="newest">Newest</option>
+                <option value="popular">Popular</option>
+                <option value="rating">Top Rated</option>
+                <option value="quickest">Quickest</option>
+                <option value="az">A–Z</option>
+                <option value="za">Z–A</option>
+                <option value="category">Category</option>
+              </select>
             </div>
+          </div>
 
-            <button
-              type="button"
-              className="rating-submit-btn"
-              onClick={handleSubmitRating}
-              disabled={submittingRating}
-            >
-              {submittingRating ? "Saving..." : "Submit Rating"}
-            </button>
+          {loading && <p>Loading recipes...</p>}
+          {error && <p>{error}</p>}
 
-            {ratingMessage && (
-              <p className="rating-modal-message">{ratingMessage}</p>
-            )}
+          <div className="recipe-grid">
+            {sortedRecipes.map((recipe) => {
+              const recipeId = recipe.apiId || recipe._id;
+              const title = recipe.title;
+              const image = recipe.image;
+
+              return (
+                <RecipeCard
+                  key={recipeId}
+                  id={recipeId}
+                  title={title}
+                  image={image}
+                  recipe={recipe}
+                  favorites={favorites}
+                  setFavorites={setFavorites}
+                  shoppingList={shoppingList}
+                  setShoppingList={setShoppingList}
+                  user={user}
+                />
+              );
+            })}
           </div>
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }

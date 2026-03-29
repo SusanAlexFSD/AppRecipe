@@ -15,11 +15,6 @@ export default function Recipe() {
   const [favorites, setFavorites] = useState([]);
   const [shoppingList, setShoppingList] = useState([]);
 
-  const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
-  const [selectedRating, setSelectedRating] = useState(0);
-  const [submittingRating, setSubmittingRating] = useState(false);
-  const [ratingMessage, setRatingMessage] = useState("");
-
   const getRecipeId = (r) => r?.apiId || r?.id || r?._id;
 
   const formatInstructions = (text) => {
@@ -48,6 +43,7 @@ export default function Recipe() {
     );
   };
 
+  // Try to visually separate quantity from the main ingredient name
   const formatIngredient = (ingredient) => {
     if (!ingredient || typeof ingredient !== "string") {
       return { prefix: "", bold: "", suffix: "" };
@@ -85,25 +81,6 @@ export default function Recipe() {
     };
   };
 
-  const fetchRecipe = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const res = await axios.get(`/api/recipes/${id}`);
-      setRecipe(res.data.recipe || res.data);
-    } catch (err) {
-      console.error("API Error:", err);
-      setError(
-        err.response?.status === 404
-          ? "Recipe not found"
-          : "Failed to load recipe"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAddToFavorites = async () => {
     if (!recipe) return;
     const recipeId = getRecipeId(recipe);
@@ -112,14 +89,14 @@ export default function Recipe() {
 
     try {
       if (user?._id) {
-        await axios.post("/api/favorites/add", {
+        await axios.post("/favorites/add", {
           userId: user._id,
           recipeId,
           recipeTitle: recipe.title,
           recipeImage: recipe.image,
         });
 
-        const res = await axios.get(`/api/favorites/user/${user._id}`);
+        const res = await axios.get(`/favorites/${user._id}`);
         setFavorites(res.data.favorites || []);
       } else {
         const updated = [...favorites, recipe];
@@ -141,11 +118,11 @@ export default function Recipe() {
 
     try {
       if (user?._id) {
-        await axios.delete("/api/favorites/remove", {
+        await axios.delete("/favorites/remove", {
           data: { userId: user._id, recipeId },
         });
 
-        const res = await axios.get(`/api/favorites/user/${user._id}`);
+        const res = await axios.get(`/favorites/${user._id}`);
         setFavorites(res.data.favorites || []);
       } else {
         const updated = favorites.filter(
@@ -172,90 +149,13 @@ export default function Recipe() {
     setShoppingList((prev) => [...prev, recipe]);
 
     try {
-      await axios.post("/api/shoppingList", {
+      await axios.post("/shoppingList", {
         userId: user._id,
         recipeName: recipe.title,
         ingredients: recipe.ingredients,
       });
     } catch (err) {
       console.error("Failed to save shopping list:", err);
-    }
-  };
-
-  const openRatingModal = () => {
-    setSelectedRating(0);
-    setRatingMessage("");
-    setIsRatingModalOpen(true);
-  };
-
-  const closeRatingModal = () => {
-    if (submittingRating) return;
-    setIsRatingModalOpen(false);
-    setSelectedRating(0);
-    setRatingMessage("");
-  };
-
-  const handleSubmitRating = async () => {
-    if (!recipe) return;
-
-    if (!selectedRating) {
-      setRatingMessage("Please choose a star rating.");
-      return;
-    }
-
-    try {
-      setSubmittingRating(true);
-      setRatingMessage("");
-
-      await axios.post("/api/recipes/ratings/add", {
-        recipeId: getRecipeId(recipe),
-        userId: user?._id || null,
-        rating: selectedRating,
-      });
-
-      setRatingMessage("Rating saved!");
-      await fetchRecipe();
-
-      setTimeout(() => {
-        setIsRatingModalOpen(false);
-        setSelectedRating(0);
-        setRatingMessage("");
-      }, 1200);
-    } catch (err) {
-      console.error("Failed to rate recipe:", err);
-      console.error("Server response:", err.response?.data);
-      console.error("Status:", err.response?.status);
-
-      setRatingMessage(
-        err.response?.data?.message || "Failed to save rating."
-      );
-    } finally {
-      setSubmittingRating(false);
-    }
-  };
-
-  const handlePrintRecipe = () => {
-    window.print();
-  };
-
-  const handleShareRecipe = async () => {
-    if (!recipe) return;
-
-    const shareUrl = window.location.href;
-
-    try {
-      if (navigator.share) {
-        await navigator.share({
-          title: recipe.title,
-          text: `Check out this recipe: ${recipe.title}`,
-          url: shareUrl,
-        });
-      } else {
-        await navigator.clipboard.writeText(shareUrl);
-        alert("Recipe link copied to clipboard!");
-      }
-    } catch (err) {
-      console.error("Failed to share recipe:", err);
     }
   };
 
@@ -284,7 +184,7 @@ export default function Recipe() {
       if (!user?._id) return;
 
       try {
-        const res = await axios.get(`/api/favorites/user/${user._id}`);
+        const res = await axios.get(`/favorites/${user._id}`);
         setFavorites(res.data.favorites || []);
       } catch (err) {
         console.error("Failed to load favorites:", err);
@@ -295,9 +195,26 @@ export default function Recipe() {
   }, [user]);
 
   useEffect(() => {
-    if (id) {
-      fetchRecipe();
-    }
+    const fetchRecipe = async () => {
+      try {
+        setLoading(true);
+        setError("");
+
+        const res = await axios.get(`/recipes/${id}`);
+        setRecipe(res.data.recipe || res.data);
+      } catch (err) {
+        console.error("API Error:", err);
+        setError(
+          err.response?.status === 404
+            ? "Recipe not found"
+            : "Failed to load recipe"
+        );
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (id) fetchRecipe();
   }, [id]);
 
   if (loading) {
@@ -333,8 +250,6 @@ export default function Recipe() {
   );
 
   const steps = formatInstructions(recipe.instructions);
-  const ratingValue = recipe.rating ?? 0;
-  const ratingCount = recipe.ratingCount ?? 0;
 
   return (
     <div className="recipe-page">
@@ -347,14 +262,12 @@ export default function Recipe() {
       <div className="recipe-rating-block">
         <div className="recipe-rating">
           <span className="recipe-stars">★★★★☆</span>
-          <span className="recipe-score">{ratingValue}</span>
+          <span className="recipe-score">4.5</span>
           <span className="recipe-rating-separator">|</span>
-          <span className="recipe-rating-count">
-            {ratingCount} {ratingCount === 1 ? "rating" : "ratings"}
-          </span>
+          <span className="recipe-rating-count">2 ratings</span>
         </div>
 
-        <button className="rate-btn" type="button" onClick={openRatingModal}>
+        <button className="rate-btn" type="button">
           Rate this recipe
         </button>
       </div>
@@ -426,26 +339,9 @@ export default function Recipe() {
             <Link to="/favorites" className="link-btn">
               View Favorites
             </Link>
-
             <Link to="/shoppingList" className="link-btn">
               View Shopping List
             </Link>
-
-            <button
-              type="button"
-              className="link-btn"
-              onClick={handlePrintRecipe}
-            >
-              Print Recipe
-            </button>
-
-            <button
-              type="button"
-              className="link-btn"
-              onClick={handleShareRecipe}
-            >
-              Share Recipe
-            </button>
           </div>
         </div>
       </div>
@@ -485,52 +381,6 @@ export default function Recipe() {
           )}
         </section>
       </div>
-
-      {isRatingModalOpen && (
-        <div className="rating-modal-overlay" onClick={closeRatingModal}>
-          <div className="rating-modal" onClick={(e) => e.stopPropagation()}>
-            <button
-              className="rating-modal-close"
-              type="button"
-              onClick={closeRatingModal}
-              aria-label="Close rating modal"
-            >
-              ×
-            </button>
-
-            <h3 className="rating-modal-title">Rate this recipe</h3>
-
-            <div className="rating-modal-stars">
-              {[1, 2, 3, 4, 5].map((star) => (
-                <button
-                  key={star}
-                  type="button"
-                  className={`rating-modal-star ${
-                    selectedRating >= star ? "active" : ""
-                  }`}
-                  onClick={() => setSelectedRating(star)}
-                  aria-label={`Select ${star} star${star > 1 ? "s" : ""}`}
-                >
-                  ★
-                </button>
-              ))}
-            </div>
-
-            <button
-              type="button"
-              className="rating-submit-btn"
-              onClick={handleSubmitRating}
-              disabled={submittingRating}
-            >
-              {submittingRating ? "Saving..." : "Submit Rating"}
-            </button>
-
-            {ratingMessage && (
-              <p className="rating-modal-message">{ratingMessage}</p>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
