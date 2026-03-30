@@ -4,7 +4,7 @@
 
 .favorites-page {
   min-height: 100vh;
-  padding: 120px 32px 32px;
+  padding: 180px 32px 32px;
   background: #e7e7e6;
   box-sizing: border-box;
   max-width: 1400px;
@@ -319,9 +319,15 @@
    RESPONSIVE
    ============================ */
 
+@media (max-width: 1024px) {
+  .favorites-page {
+    padding: 195px 24px 28px;
+  }
+}
+
 @media (max-width: 900px) {
   .favorites-page {
-    padding: 92px 18px 18px;
+    padding: 205px 20px 24px;
   }
 
   .favorites-hero {
@@ -332,7 +338,7 @@
 
 @media (max-width: 560px) {
   .favorites-page {
-    padding: 84px 16px 16px;
+    padding: 220px 16px 20px;
   }
 
   .favorites-grid {

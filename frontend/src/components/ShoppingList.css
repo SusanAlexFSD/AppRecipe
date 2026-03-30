@@ -10,7 +10,7 @@ body {
 
 .shoppingList-page {
   min-height: 100vh;
-  padding: 120px 32px 32px;
+  padding: 160px 32px 32px;
   background: #e7e7e6;
   box-sizing: border-box;
   max-width: 1400px;
@@ -164,7 +164,7 @@ body {
   bottom: 0;
   width: 250px;
   height: 3px;
-  background: #7fbe5d; /* your green */
+  background: #7fbe5d;
   border-radius: 2px;
 }
 
@@ -324,20 +324,30 @@ body {
    RESPONSIVE
    ============================ */
 
+  @media (max-width: 1200px) and (min-width: 561px) {
+  .shoppingList-recipeTitle::after {
+    width: 220px; 
+  }
+}
+
 @media (max-width: 900px) {
   .shoppingList-page {
-    padding: 92px 18px 18px;
+    padding: 180px 24px 24px;
   }
 
   .shoppingList-header {
     flex-direction: column;
     align-items: stretch;
   }
+
+  .shoppingList-recipeTitle::after {
+    width: 60px;
+  }
 }
 
 @media (max-width: 560px) {
   .shoppingList-page {
-    padding: 84px 16px 16px;
+    padding: 195px 16px 20px;
   }
 
   .shoppingList-grid {
@@ -350,5 +360,9 @@ body {
 
   .shoppingList-message {
     font-size: 1rem;
+  }
+
+  .shoppingList-recipeTitle::after {
+    width: 240px;
   }
 }

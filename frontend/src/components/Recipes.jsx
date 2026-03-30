@@ -15,13 +15,11 @@ export default function Recipes() {
   const [error, setError] = useState("");
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [sortBy, setSortBy] = useState("newest");
-  const [initialLoad, setInitialLoad] = useState(true);
+  const [recipeView, setRecipeView] = useState("featured");
+  const [hasLoadedAll, setHasLoadedAll] = useState(false);
 
   const normalizeValue = (value) => String(value || "").trim().toLowerCase();
 
-  // -----------------------------
-  // Fetch recipes (featured or all)
-  // -----------------------------
   const fetchRecipes = async (limit = 20) => {
     setLoading(true);
     setError("");
@@ -37,6 +35,9 @@ export default function Recipes() {
       }));
 
       setAllRecipes(cleaned);
+      if (limit > 20) {
+        setHasLoadedAll(true);
+      }
     } catch (err) {
       console.error(err);
       setError("Failed to load recipes.");
@@ -45,16 +46,10 @@ export default function Recipes() {
     }
   };
 
-  // -----------------------------
-  // Initial load (featured)
-  // -----------------------------
   useEffect(() => {
     fetchRecipes(20);
   }, []);
 
-  // -----------------------------
-  // Load favorites
-  // -----------------------------
   useEffect(() => {
     const loadFavorites = async () => {
       if (user?._id) {
@@ -73,9 +68,6 @@ export default function Recipes() {
     loadFavorites();
   }, [user]);
 
-  // -----------------------------
-  // Load shopping list
-  // -----------------------------
   useEffect(() => {
     const loadShoppingList = async () => {
       if (user?._id) {
@@ -94,9 +86,6 @@ export default function Recipes() {
     loadShoppingList();
   }, [user]);
 
-  // -----------------------------
-  // Toggle category filter
-  // -----------------------------
   const toggleCategory = (value) => {
     const normalized = normalizeValue(value);
 
@@ -106,18 +95,39 @@ export default function Recipes() {
         : [...prev, normalized]
     );
 
-    setInitialLoad(false);
+    if (recipeView === "featured") {
+      setRecipeView("all");
+      if (!hasLoadedAll) {
+        fetchRecipes(200);
+      }
+    }
   };
 
   const clearFilters = () => {
     setSelectedCategories([]);
-    setInitialLoad(true);
-    fetchRecipes(20);
   };
 
-  // -----------------------------
-  // Categories list
-  // -----------------------------
+  const handleSwitchView = async (view) => {
+    setRecipeView(view);
+
+    if (view === "all" && !hasLoadedAll) {
+      await fetchRecipes(200);
+    }
+
+    if (view === "featured" && hasLoadedAll) {
+      await fetchRecipes(20);
+      setHasLoadedAll(false);
+    }
+  };
+
+  const handleBrowseAll = async () => {
+    setRecipeView("all");
+
+    if (!hasLoadedAll) {
+      await fetchRecipes(200);
+    }
+  };
+
   const categories = useMemo(() => {
     const unique = [
       ...new Set(allRecipes.map((r) => normalizeValue(r.category)).filter(Boolean)),
@@ -125,9 +135,6 @@ export default function Recipes() {
     return unique.sort((a, b) => a.localeCompare(b));
   }, [allRecipes]);
 
-  // -----------------------------
-  // Apply category filtering (CLIENT SIDE)
-  // -----------------------------
   const filteredRecipes = useMemo(() => {
     if (selectedCategories.length === 0) return allRecipes;
 
@@ -136,9 +143,6 @@ export default function Recipes() {
     );
   }, [allRecipes, selectedCategories]);
 
-  // -----------------------------
-  // Sorting
-  // -----------------------------
   const sortedRecipes = useMemo(() => {
     const list = [...filteredRecipes];
 
@@ -151,8 +155,7 @@ export default function Recipes() {
 
       case "quickest":
         return list.sort(
-          (a, b) =>
-            (a.readyInMinutes ?? 9999) - (b.readyInMinutes ?? 9999)
+          (a, b) => (a.readyInMinutes ?? 9999) - (b.readyInMinutes ?? 9999)
         );
 
       case "az":
@@ -175,29 +178,18 @@ export default function Recipes() {
     }
   }, [filteredRecipes, sortBy]);
 
-  // -----------------------------
-  // Render
-  // -----------------------------
   return (
     <>
-      {/* HERO BANNER */}
       <div className="recipes-hero">
         <div className="recipes-hero-content">
           <h1>Find Delicious Recipes</h1>
           <p>Discover quick, easy, and delicious recipes suited to your taste.</p>
-          <button
-            className="browse-btn"
-            onClick={() => {
-              setInitialLoad(false);
-              fetchRecipes(200);
-            }}
-          >
+          <button className="browse-btn" onClick={handleBrowseAll}>
             Browse All Recipes →
           </button>
         </div>
       </div>
 
-      {/* MAIN LAYOUT */}
       <div className="recipes-layout">
         <RecipesSidebar
           categories={categories}
@@ -207,8 +199,32 @@ export default function Recipes() {
         />
 
         <div className="recipes-main">
+          <div className="recipes-switcher">
+            <button
+              className={`recipes-switch-btn ${
+                recipeView === "featured" ? "active" : ""
+              }`}
+              onClick={() => handleSwitchView("featured")}
+              type="button"
+            >
+              Featured Recipes
+            </button>
+
+            <span className="recipes-switch-divider">/</span>
+
+            <button
+              className={`recipes-switch-btn ${
+                recipeView === "all" ? "active" : ""
+              }`}
+              onClick={() => handleSwitchView("all")}
+              type="button"
+            >
+              All Recipes
+            </button>
+          </div>
+
           <div className="recipes-topbar">
-            <h2>{initialLoad ? "Featured Recipes" : "All Recipes"}</h2>
+            <h2>{recipeView === "featured" ? "Featured Recipes" : "All Recipes"}</h2>
 
             <div className="recipes-sort">
               <label htmlFor="recipe-sort">Sort:</label>
@@ -230,6 +246,10 @@ export default function Recipes() {
 
           {loading && <p>Loading recipes...</p>}
           {error && <p>{error}</p>}
+
+          {!loading && !error && sortedRecipes.length === 0 && (
+            <p className="no-recipes-message">No recipes found.</p>
+          )}
 
           <div className="recipe-grid">
             {sortedRecipes.map((recipe) => {

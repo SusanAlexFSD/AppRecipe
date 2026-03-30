@@ -1,9 +1,10 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import LogoutButton from "./LogoutButton.jsx";
 import { AuthContext } from "../context/AuthContext.jsx";
 import SearchHelpModal from "./SearchHelpModal.jsx";
-import logoImage from "../assets/recipesoup.png";
+import { FiShoppingCart } from "react-icons/fi";
+import logoImage from "../assets/recipesoup1.png";
 import "./NavBar.css";
 
 export default function NavBar({
@@ -12,27 +13,47 @@ export default function NavBar({
 }) {
   const { user } = useContext(AuthContext);
   const [showHelp, setShowHelp] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef(null);
 
   const displayName = user?.isGuest
     ? "Guest"
     : user?.displayName || user?.username || user?.email || "User";
 
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false);
+      }
+    };
+
+    const handleEscape = (e) => {
+      if (e.key === "Escape") setMenuOpen(false);
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleEscape);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleEscape);
+    };
+  }, []);
+
+  const closeMenu = () => setMenuOpen(false);
+
   return (
     <>
       <nav className="navbar">
-        <Link to="/" className="nav-logo-card" aria-label="DishLab home">
-          <img
-            src={logoImage}
-            alt="DishLab logo"
-            className="nav-logo-image"
-          />
+        {/* LOGO */}
+        <Link to="/" className="nav-logo-card">
+          <img src={logoImage} alt="DishLab logo" className="nav-logo-image" />
           <span className="nav-logo-text">DishLab</span>
         </Link>
 
+        {/* SEARCH */}
         <div className="nav-search">
-          <span className="nav-search-icon" aria-hidden="true">
-            ⌕
-          </span>
+          <span className="nav-search-icon">⌕</span>
 
           <input
             type="text"
@@ -40,62 +61,108 @@ export default function NavBar({
             placeholder="Search recipes..."
             value={searchTerm}
             onChange={(e) => onSearchChange(e.target.value)}
-            aria-label="Search recipes"
           />
 
           <button
-            type="button"
             className="nav-search-help"
-            aria-label="Search help"
-            title="Search help"
             onClick={() => setShowHelp(true)}
           >
             ?
           </button>
         </div>
 
-        <div className="nav-actions">
+        {/* ACTIONS */}
+        <div className="nav-actions" ref={menuRef}>
           {user ? (
             <>
-              <Link to="/favorites" className="nav-pill-btn" aria-label="Favorites">
-                <span className="nav-pill-icon" aria-hidden="true">
-                  ♥
-                </span>
-                <span className="nav-pill-text">Favorites</span>
-              </Link>
-
+              {/* ❤️ FAVORITES */}
               <Link
-                to="/shoppingList"
-                className="nav-cart-btn"
-                aria-label="Shopping List"
-                title="Shopping List"
+                to="/favorites"
+                className="nav-icon-circle nav-favorites-circle"
+                title="Favorites"
               >
-                <span aria-hidden="true">🛒</span>
+                ♥
               </Link>
 
-              <div className="nav-user-chip" title={displayName}>
-                <span className="nav-user-icon" aria-hidden="true">
-                  👋
-                </span>
-                <span className="nav-user-text">{displayName}</span>
-              </div>
+              {/* 🛒 CART */}
+              <Link to="/shoppingList" className="nav-cart-btn">
+                <FiShoppingCart />
+              </Link>
 
-              <div className="nav-logout-wrap">
-                <LogoutButton />
-              </div>
+              {/* ☰ MENU */}
+              <button
+                className="nav-menu-btn"
+                onClick={() => setMenuOpen((prev) => !prev)}
+              >
+                ☰
+              </button>
+
+              {menuOpen && (
+                <div className="nav-mobile-menu nav-desktop-menu">
+                  <div className="nav-mobile-user">
+                    👋 {displayName}
+                  </div>
+
+                  <Link
+                    to="/favorites"
+                    className="nav-mobile-link"
+                    onClick={closeMenu}
+                  >
+                    ♥ Favorites
+                  </Link>
+
+                  <Link
+                    to="/shoppingList"
+                    className="nav-mobile-link"
+                    onClick={closeMenu}
+                  >
+                    🛒 Shopping List
+                  </Link>
+
+                  <div className="nav-mobile-logout" onClick={closeMenu}>
+                    <LogoutButton />
+                  </div>
+                </div>
+              )}
             </>
           ) : (
-            <div className="nav-auth-links">
-              <Link to="/login" className="nav-pill-btn nav-text-link">
+            <>
+              {/* LOGIN BUTTON (NOW DROPDOWN TRIGGER) */}
+              <button
+                className="nav-login-btn"
+                onClick={() => setMenuOpen((prev) => !prev)}
+              >
                 Login
-              </Link>
-              <Link to="/register" className="nav-pill-btn nav-text-link">
-                Register
-              </Link>
-              <Link to="/guest" className="nav-pill-btn nav-guest-btn">
-                Guest
-              </Link>
-            </div>
+              </button>
+
+              {menuOpen && (
+                <div className="nav-mobile-menu nav-desktop-menu">
+                  <Link
+                    to="/login"
+                    className="nav-mobile-link"
+                    onClick={closeMenu}
+                  >
+                    Login
+                  </Link>
+
+                  <Link
+                    to="/register"
+                    className="nav-mobile-link"
+                    onClick={closeMenu}
+                  >
+                    Register
+                  </Link>
+
+                  <Link
+                    to="/guest"
+                    className="nav-mobile-link"
+                    onClick={closeMenu}
+                  >
+                    👋 Continue as Guest
+                  </Link>
+                </div>
+              )}
+            </>
           )}
         </div>
       </nav>

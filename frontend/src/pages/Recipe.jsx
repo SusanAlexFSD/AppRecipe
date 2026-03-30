@@ -3,6 +3,7 @@ import React, { useEffect, useState, useContext } from "react";
 import { useParams, Link } from "react-router-dom";
 import axios from "../api/axios";
 import { AuthContext } from "../context/AuthContext";
+import { FiPrinter, FiShare2 } from "react-icons/fi";
 import "./Recipe.css";
 
 export default function Recipe() {
@@ -14,6 +15,7 @@ export default function Recipe() {
   const [error, setError] = useState("");
   const [favorites, setFavorites] = useState([]);
   const [shoppingList, setShoppingList] = useState([]);
+  const [shareMessage, setShareMessage] = useState("");
 
   const getRecipeId = (r) => r?.apiId || r?.id || r?._id;
 
@@ -43,7 +45,6 @@ export default function Recipe() {
     );
   };
 
-  // Try to visually separate quantity from the main ingredient name
   const formatIngredient = (ingredient) => {
     if (!ingredient || typeof ingredient !== "string") {
       return { prefix: "", bold: "", suffix: "" };
@@ -157,6 +158,43 @@ export default function Recipe() {
     } catch (err) {
       console.error("Failed to save shopping list:", err);
     }
+  };
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleShare = async () => {
+    if (!recipe) return;
+
+    const shareUrl = window.location.href;
+    const shareData = {
+      title: recipe.title,
+      text: `Check out this recipe: ${recipe.title}`,
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setShareMessage("Recipe shared successfully.");
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareMessage("Recipe link copied to clipboard.");
+      } else {
+        setShareMessage("Sharing is not supported on this browser.");
+      }
+    } catch (err) {
+      console.error("Share failed:", err);
+
+      if (err?.name !== "AbortError") {
+        setShareMessage("Could not share recipe.");
+      }
+    }
+
+    setTimeout(() => {
+      setShareMessage("");
+    }, 2500);
   };
 
   useEffect(() => {
@@ -335,14 +373,37 @@ export default function Recipe() {
             )}
           </div>
 
-          <div className="recipe-links">
+        <div className="recipe-links">
+          <div className="recipe-links-main">
             <Link to="/favorites" className="link-btn">
               View Favorites
             </Link>
+
             <Link to="/shoppingList" className="link-btn">
               View Shopping List
             </Link>
           </div>
+
+          <div className="recipe-links-icons">
+            <button
+              className="icon-link-btn"
+              onClick={handlePrint}
+              title="Print Recipe"
+            >
+              <FiPrinter />
+            </button>
+
+            <button
+              className="icon-link-btn"
+              onClick={handleShare}
+              title="Share Recipe"
+            >
+              <FiShare2 />
+            </button>
+          </div>
+        </div>
+
+          {shareMessage && <p className="share-message">{shareMessage}</p>}
         </div>
       </div>
 

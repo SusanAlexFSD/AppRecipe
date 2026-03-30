@@ -128,3 +128,78 @@
 .rs-actionBtn--favorites:hover {
   background: #c85b76;
 }
+
+
+@media (max-width: 560px) {
+  .rs {
+    width: 100%;
+    border-radius: 20px;
+    overflow: hidden;
+    height: auto;
+  }
+
+  .rs-brand {
+    padding: 18px 18px 14px;
+    font-size: 2.1rem;
+    font-weight: 800;
+    line-height: 1;
+    background: #f4f4f1;
+    border-bottom: 1px solid #e6e3db;
+  }
+
+  .rs-filterSection {
+    padding: 18px;
+    border-bottom: 1px solid #e6e3db;
+  }
+
+  .rs-filterHeader {
+    font-size: 1.05rem;
+    margin-bottom: 14px;
+  }
+
+  .rs-checkboxList {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px 18px;
+  }
+
+  .rs-checkboxRow {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 0.98rem;
+    line-height: 1.25;
+  }
+
+  .rs-checkboxRow input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+  }
+
+  .rs-clearBtn {
+    width: calc(100% - 36px);
+    margin: 16px auto;
+    padding: 13px 16px;
+    font-size: 1rem;
+  }
+
+  .rs-quickAccessBlock {
+    padding: 18px;
+  }
+
+  .rs-quickAccessTitle {
+    font-size: 1rem;
+    margin-bottom: 12px;
+  }
+
+  .rs-quickAccessButtons {
+    gap: 10px;
+  }
+
+  .rs-actionBtn {
+    padding: 13px 14px;
+    border-radius: 14px;
+    font-size: 0.98rem;
+  }
+}
