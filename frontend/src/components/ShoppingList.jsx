@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useContext, useMemo } from "react";
 import { Link } from "react-router-dom";
+import { FiPrinter, FiShare2 } from "react-icons/fi";
 import axios from "../api/axios";
 import { AuthContext } from "../context/AuthContext";
 import "./ShoppingList.css";
@@ -9,6 +10,7 @@ export default function ShoppingList() {
 
   const [shoppingList, setShoppingList] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [shareMessage, setShareMessage] = useState("");
 
   const [confirmModal, setConfirmModal] = useState({
     open: false,
@@ -72,6 +74,42 @@ export default function ShoppingList() {
     }
   };
 
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const handleShare = async () => {
+    const shareUrl = window.location.href;
+
+    const shareData = {
+      title: "My Shopping List",
+      text: "Check out my shopping list",
+      url: shareUrl,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+        setShareMessage("Shopping list shared successfully.");
+      } else if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(shareUrl);
+        setShareMessage("Shopping list link copied to clipboard.");
+      } else {
+        setShareMessage("Sharing is not supported on this browser.");
+      }
+    } catch (err) {
+      console.error("Error sharing shopping list:", err);
+
+      if (err?.name !== "AbortError") {
+        setShareMessage("Could not share shopping list.");
+      }
+    }
+
+    setTimeout(() => {
+      setShareMessage("");
+    }, 2500);
+  };
+
   if (!user) {
     return (
       <div className="shoppingList-page">
@@ -84,7 +122,9 @@ export default function ShoppingList() {
     return (
       <div className="shoppingList-page">
         <nav className="shoppingList-nav">
-          <Link to="/" className="shoppingList-backLink">← Back to Recipes</Link>
+          <Link to="/" className="shoppingList-backLink">
+            ← Back to Recipes
+          </Link>
         </nav>
         <p className="shoppingList-message">Loading shopping list...</p>
       </div>
@@ -94,13 +134,12 @@ export default function ShoppingList() {
   return (
     <>
       <div className="shoppingList-page">
-
-        {/* BACK LINK */}
         <nav className="shoppingList-nav">
-          <Link to="/" className="shoppingList-backLink">← Back to Recipes</Link>
+          <Link to="/" className="shoppingList-backLink">
+            ← Back to Recipes
+          </Link>
         </nav>
 
-        {/* HEADER */}
         <section className="shoppingList-header">
           <div>
             <h1 className="shoppingList-title">Shopping List</h1>
@@ -111,13 +150,40 @@ export default function ShoppingList() {
           </div>
 
           {shoppingList.length > 0 && (
-            <button className="shoppingList-clearBtn" onClick={openClearAllModal}>
-              Clear All
-            </button>
+            <div className="shoppingList-actions">
+              <button
+                className="icon-btn"
+                onClick={handlePrint}
+                type="button"
+                title="Print shopping list"
+                aria-label="Print shopping list"
+              >
+                <FiPrinter />
+              </button>
+
+              <button
+                className="icon-btn"
+                onClick={handleShare}
+                type="button"
+                title="Share shopping list"
+                aria-label="Share shopping list"
+              >
+                <FiShare2 />
+              </button>
+
+              <button
+                className="shoppingList-clearBtn"
+                onClick={openClearAllModal}
+                type="button"
+              >
+                Clear All
+              </button>
+            </div>
           )}
         </section>
 
-        {/* EMPTY STATE */}
+        {shareMessage && <p className="share-message">{shareMessage}</p>}
+
         {shoppingList.length === 0 ? (
           <div className="shoppingList-empty">
             <p>No ingredients in your shopping list.</p>
@@ -129,8 +195,6 @@ export default function ShoppingList() {
 
               return (
                 <article key={idx} className="shoppingList-card">
-
-                  {/* IMAGE + TITLE */}
                   <div className="shoppingList-thumbRow">
                     {recipe.image && (
                       <img
@@ -139,7 +203,9 @@ export default function ShoppingList() {
                         className="shoppingList-thumb"
                       />
                     )}
-                    <h2 className="shoppingList-recipeTitle">{recipe.recipeName}</h2>
+                    <h2 className="shoppingList-recipeTitle">
+                      {recipe.recipeName}
+                    </h2>
                   </div>
 
                   <p className="shoppingList-count">
@@ -159,6 +225,7 @@ export default function ShoppingList() {
                   <button
                     className="shoppingList-removeBtn"
                     onClick={() => openRemoveRecipeModal(recipe.recipeName)}
+                    type="button"
                   >
                     Remove
                   </button>
@@ -169,7 +236,6 @@ export default function ShoppingList() {
         )}
       </div>
 
-      {/* CONFIRM MODAL */}
       {confirmModal.open && (
         <div className="confirmModal-overlay" onClick={closeModal}>
           <div className="confirmModal" onClick={(e) => e.stopPropagation()}>
@@ -189,6 +255,7 @@ export default function ShoppingList() {
               <button
                 className="confirmModal-btn confirmModal-btn-secondary"
                 onClick={closeModal}
+                type="button"
               >
                 Cancel
               </button>
@@ -196,6 +263,7 @@ export default function ShoppingList() {
               <button
                 className="confirmModal-btn confirmModal-btn-danger"
                 onClick={handleConfirmAction}
+                type="button"
               >
                 {confirmModal.type === "clearAll" ? "Clear All" : "Remove"}
               </button>

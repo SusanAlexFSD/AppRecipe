@@ -320,6 +320,66 @@ body {
   }
 }
 
+
+.shoppingList-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: #f4f4f4;
+  color: #2f5d50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: #e6f4ee;
+  color: #3d8b6d;
+  transform: translateY(-1px);
+}
+
+.icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.share-message {
+  margin: 10px 0 18px;
+  font-size: 0.95rem;
+  color: #2f7d32;
+  font-weight: 600;
+}
+
+@media print {
+  .shoppingList-nav,
+  .shoppingList-actions,
+  .shoppingList-clearBtn,
+  .confirmModal-overlay,
+  .share-message {
+    display: none !important;
+  }
+
+  .shoppingList-page {
+    padding: 0;
+    background: white;
+  }
+
+  .shoppingList-card {
+    box-shadow: none;
+    border: 1px solid #ddd;
+  }
+}
+
 /* ============================
    RESPONSIVE
    ============================ */
